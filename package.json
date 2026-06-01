@@ -1,0 +1,32 @@
+{
+  "name": "one-resume",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Document pipeline for CV / projects / freelance résumés: markdown (from the pro-profile-source repo) → typed data via cv-parser → Typst PDFs (cv-pdf) + ATS DOCX (cv-ats), plus locale modules for the pro-landing site. External paths are env-configurable — see .env.example.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "workspaces": [
+    "cv-parser",
+    "cv-pdf",
+    "cv-ats"
+  ],
+  "scripts": {
+    "cv:parse": "node --import tsx cv-parser/bin/cli.ts",
+    "cv:test": "npm --workspace cv-parser test",
+    "test": "npm --workspace cv-parser test",
+    "cv:pdf": "tsx cv-pdf/scripts/build.ts",
+    "cv:pdf:public": "tsx cv-pdf/scripts/build.ts --public",
+    "cv:pdf:all": "tsx cv-pdf/scripts/build.ts --all",
+    "cv:pdf:special": "tsx cv-pdf/scripts/build.ts --special",
+    "cv:ats": "tsx cv-ats/scripts/build.ts",
+    "cv:ats:all": "tsx cv-ats/scripts/build.ts --all",
+    "cv:sync-locales": "tsx scripts/sync-locales-from-parser.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.22.2",
+    "typescript": "^5.7.0"
+  }
+}

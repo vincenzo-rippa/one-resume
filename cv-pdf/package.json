@@ -1,0 +1,9 @@
+{
+  "name": "cv-pdf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typst-based CV PDF generator. Requires the typst CLI — install from https://typst.app/docs/install or via `winget install Typst.Typst` / `brew install typst`.",
+  "devDependencies": {
+    "@types/node": "^25.9.1"
+  }
+}

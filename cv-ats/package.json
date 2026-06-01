@@ -1,0 +1,18 @@
+{
+  "name": "cv-ats",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ATS-friendly DOCX generator for parsed CVs / projects. Consumes cv-parser output and writes .docx via the `docx` npm package.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "docx": "^9.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

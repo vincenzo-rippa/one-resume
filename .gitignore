@@ -1,0 +1,16 @@
+# dependencies
+node_modules/
+
+# private build output (PDFs / DOCX that are NOT shipped by the site)
+/printed/
+
+# typst temp cache
+**/.cache/
+
+# env: local overrides only — .env.example is committed
+.env
+.env.*.local
+
+# misc
+.DS_Store
+*.tsbuildinfo
