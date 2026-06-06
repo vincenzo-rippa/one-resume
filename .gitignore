@@ -4,6 +4,9 @@ node_modules/
 # private build output (PDFs / DOCX that are NOT shipped by the site)
 /printed/
 
+# Claude private data
+.claude/
+
 # typst temp cache
 **/.cache/
 

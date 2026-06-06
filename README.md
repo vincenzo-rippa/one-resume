@@ -13,15 +13,21 @@ elsewhere.
 
 ## Packages
 
-| Path         | Purpose                                                            |
-| ------------ | ------------------------------------------------------------------ |
-| `cv-parser/` | Markdown → typed `ParsedCv` (deterministic, fail-fast).            |
-| `cv-pdf/`    | Typst templates + Node wrapper → CV / projects / freelance PDFs.   |
-| `cv-ats/`    | `docx` renderer → ATS-friendly DOCX exports.                       |
-| `scripts/`   | `sync-locales-from-parser.ts` — regenerates the site's content JSON. |
+| Path            | Purpose                                                             |
+| --------------- | ------------------------------------------------------------------ |
+| `core-parser/`  | Markdown → typed `ParsedCv` (deterministic, fail-fast). Pure: `marked` only, no `node:*`, no `yaml`. |
+| `source-nodefs/`| Node I/O layer: `FileSystemSource`, pipeline path config, and the `core-parse` debug CLI. |
+| `export-pdf/`   | Typst templates + Node wrapper → CV / projects / freelance PDFs.   |
+| `export-doc/`   | `docx` renderer → ATS-friendly DOCX exports.                       |
+| `export-json/`  | core-parser → the per-language `content.json` the site consumes.   |
 
-See `cv-parser/docs/CONTENT_CONTRACT.md` for the markdown structural rules and
-sidecar schemas.
+`core-parser` defines `parseCv` / `parseProjects` and a one-method
+`SourceResolver` seam; `source-nodefs` is the filesystem implementation that the
+exporters build on. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the package graph
+and design decisions, and `core-parser/docs/CONTENT_CONTRACT.md` for the markdown
+structural rules. Keywords live in the markdown as a `<!-- keywords: … -->`
+comment; the only YAML sidecar left is the private cv-special one (in
+`export-pdf/src/special/`).
 
 ## Prerequisites
 
@@ -32,7 +38,7 @@ sidecar schemas.
 ## Install
 
 ```bash
-npm install   # workspaces: installs cv-parser / cv-pdf / cv-ats deps + tooling
+npm install   # workspaces: installs all package deps (core-parser / source-nodefs / export-*) + tooling
 ```
 
 ## Configuration
@@ -44,30 +50,30 @@ Copy `.env.example` to `.env` to override.
 | Var                  | Default                          | Used by              |
 | -------------------- | -------------------------------- | -------------------- |
 | `CONTENT_DIR`        | `../pro-profile-source`          | all                  |
-| `SITE_PUBLIC_CV_DIR` | `../pro-landing/public/cv`       | `cv:pdf:public`      |
-| `SITE_LOCALES_DIR`   | `../pro-landing/src/lib/locales` | `cv:sync-locales`    |
-| `PRINTED_DIR`        | `./printed`                      | `cv:pdf:all`, `cv:ats` |
+| `SITE_PUBLIC_CV_DIR` | `../pro-landing/public/cv`       | `pdf:public`         |
+| `SITE_LOCALES_DIR`   | `../pro-landing/src/lib/locales` | `sync-locales`       |
+| `PRINTED_DIR`        | `./printed`                      | `pdf:all`, `doc`     |
 
 ## Scripts
 
-| Command                          | What it does                                                  |
-| -------------------------------- | ------------------------------------------------------------- |
-| `npm run cv:test`                | Run the cv-parser test suite                                  |
-| `npm run cv:sync-locales`        | Regenerate the site's `locales/{en,it}/content.json`         |
-| `npm run cv:pdf:public`          | Build the 4 public PDFs into `SITE_PUBLIC_CV_DIR`             |
-| `npm run cv:pdf -- --input <md>` | Build one PDF (`--input`/`--out` resolve against cwd)         |
-| `npm run cv:pdf:all`             | Build every parser-known PDF into `PRINTED_DIR/pdf`           |
-| `npm run cv:pdf:special`         | Build the private cv-special PDF                              |
-| `npm run cv:ats -- --input <md>` | Build one ATS DOCX                                            |
-| `npm run cv:ats:all`             | Build every parser-known DOCX into `PRINTED_DIR/ats`          |
-| `npm run cv:parse -- <md>`       | Parse one markdown file to JSON on stdout                     |
+| Command                       | What it does                                                  |
+| ----------------------------- | ------------------------------------------------------------ |
+| `npm test`                    | Run the core-parser test suite                               |
+| `npm run sync-locales`        | Regenerate the site's `locales/{en,it}/content.json`         |
+| `npm run pdf:public`          | Build the 4 public PDFs into `SITE_PUBLIC_CV_DIR`            |
+| `npm run pdf -- --input <md>` | Build one PDF (`--input`/`--out` resolve against cwd)        |
+| `npm run pdf:all`             | Build every parser-known PDF into `PRINTED_DIR/pdf`          |
+| `npm run pdf:special`         | Build the private cv-special PDF                             |
+| `npm run doc -- --input <md>` | Build one ATS DOCX                                           |
+| `npm run doc:all`             | Build every parser-known DOCX into `PRINTED_DIR/ats`         |
+| `npm run parse -- <md>`       | Parse one markdown file to JSON on stdout                    |
 
 ## Content workflow
 
 ```bash
 # Edit a markdown file in ../pro-profile-source, then:
-npm run cv:sync-locales        # regenerate the site's content JSON
-npm run cv:pdf:public          # regenerate the 4 public PDFs the site ships
+npm run sync-locales           # regenerate the site's content JSON
+npm run pdf:public             # regenerate the 4 public PDFs the site ships
 ```
 
 Commit the markdown change in `pro-profile-source` and the regenerated

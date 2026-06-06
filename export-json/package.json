@@ -1,0 +1,19 @@
+{
+  "name": "export-json",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Content JSON exporter. Parses CV / projects markdown via core-parser and writes the per-language content.json the pro-landing site consumes.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "core-parser": "*",
+    "source-nodefs": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}
