@@ -6,14 +6,18 @@ import {
   type Locale,
 } from "@one-resume/localization";
 
+function isLocale(value: string): value is Locale {
+  return (SUPPORTED_LOCALES as readonly string[]).includes(value);
+}
+
 function requireLocale(ctx: RouterContext): Locale {
   const locale = ctx.params.locale;
-  ctx.assert(
-    SUPPORTED_LOCALES.includes(locale),
-    400,
-    `'locale' parameter must be one of: ${SUPPORTED_LOCALES.join(", ")}`,
-  );
-
+  if (typeof locale !== "string" || !isLocale(locale)) {
+    ctx.throw(
+      400,
+      `'locale' parameter must be one of: ${SUPPORTED_LOCALES.join(", ")}`,
+    );
+  }
   return locale;
 }
 

@@ -84,8 +84,8 @@ done
 echo "### PDF special"
 run "$BASE_WT" special >/dev/null 2>&1
 run "$REPO_ROOT" special >/dev/null 2>&1
-pdftotext -layout "$BASE_WT/printed/pdf/it-cv-special.pdf" "$OUT/base/special.txt" 2>/dev/null
-pdftotext -layout "$REPO_ROOT/printed/pdf/it-cv-special.pdf" "$OUT/head/special.txt" 2>/dev/null
+pdftotext -layout "$BASE_WT/out/pdf/it-cv-special.pdf" "$OUT/base/special.txt" 2>/dev/null
+pdftotext -layout "$REPO_ROOT/out/pdf/it-cv-special.pdf" "$OUT/head/special.txt" 2>/dev/null
 check "pdf special" "$OUT/base/special.txt" "$OUT/head/special.txt"
 
 echo "### DOCX (word/document.xml)"

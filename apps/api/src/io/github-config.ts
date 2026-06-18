@@ -18,4 +18,20 @@ export class GitHubConfig {
       process.env.GITHUB_REF,
     );
   }
+
+  /**
+   * A safe-to-expose view for error payloads: the PAT is masked (`"****"` when
+   * set, `"absent"` when not) and any unset field reads `"missing"` rather than
+   * an empty string. NEVER returns the real token.
+   */
+  redacted(): Record<string, string> {
+    const orMissing = (v: string | undefined): string =>
+      v && v.length > 0 ? v : "missing";
+    return {
+      gitHubPat: this.gitHubPat.length > 0 ? "****" : "missing",
+      gitHubOwner: orMissing(this.gitHubOwner),
+      gitHubRoot: orMissing(this.gitHubRoot),
+      gitHubRef: orMissing(this.gitHubRef),
+    };
+  }
 }

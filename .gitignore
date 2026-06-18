@@ -1,8 +1,8 @@
 # dependencies
 node_modules/
 
-# private build output (PDFs / DOCX that are NOT shipped by the site)
-/printed/
+# generated build output (PDFs / DOCX / content.json — regenerated from source)
+/out/
 
 # Claude private data
 .claude/

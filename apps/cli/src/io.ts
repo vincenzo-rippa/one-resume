@@ -24,7 +24,13 @@ export async function readText(path: string): Promise<string | null> {
 /** Read UTF-8 text; throw a clear error when the file does not resolve. */
 export async function readTextRequired(path: string): Promise<string> {
   const text = await readText(path);
-  if (text === null) throw new Error(`source not found: ${path}`);
+  if (text === null) {
+    throw new Error(
+      `file not found: ${path}\n` +
+        "Content paths are resolved against CONTENT_DIR (default: examples/). " +
+        "Set CONTENT_DIR in apps/cli/.env, or check the path.",
+    );
+  }
   return text;
 }
 

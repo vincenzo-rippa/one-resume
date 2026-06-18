@@ -2,6 +2,7 @@
   "name": "one-resume",
   "version": "0.2.0",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "description": "Document pipeline for CV / projects / freelance résumés: markdown (from the pro-profile-source repo) → typed data via @one-resume/parser → Typst PDFs (@one-resume/pdf) + ATS DOCX (@one-resume/docx), plus locale modules for the pro-landing site. External paths are env-configurable — see .env.example.",
   "engines": {
@@ -12,15 +13,17 @@
     "apps/*"
   ],
   "scripts": {
-    "one-resume": "tsx apps/cli/src/bin.ts",
-    "parse": "tsx apps/cli/src/bin.ts parse",
+    "one-resume": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts",
+    "parse": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts parse",
     "test": "npm run test --workspaces --if-present",
-    "pdf": "tsx apps/cli/src/bin.ts pdf",
-    "pdf:public": "tsx apps/cli/src/bin.ts pdf --public",
-    "pdf:all": "tsx apps/cli/src/bin.ts pdf --all",
-    "pdf:special": "tsx apps/cli/src/bin.ts special",
-    "doc": "tsx apps/cli/src/bin.ts docx",
-    "doc:all": "tsx apps/cli/src/bin.ts docx --all",
+    "pdf": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf",
+    "pdf:public": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --public",
+    "pdf:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --all",
+    "pdf:special": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts special",
+    "doc": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts docx",
+    "doc:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts docx --all",
+    "sync": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts sync",
+    "sync:check": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts sync --check",
     "api": "tsx --env-file=apps/api/.env apps/api/src/app.ts",
     "api:dev": "tsx watch --env-file=apps/api/.env apps/api/src/app.ts"
   },

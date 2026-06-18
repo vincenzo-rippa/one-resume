@@ -1,0 +1,11 @@
+# Build context excludes — keep the image lean and secrets out.
+**/node_modules
+.git
+.claude
+out
+printed
+**/.cache
+# never copy env files into the image (secrets); platform injects env
+**/.env
+**/.env.*
+*.tsbuildinfo

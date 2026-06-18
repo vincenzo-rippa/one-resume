@@ -7,7 +7,7 @@ import type { PdfLabels } from "@one-resume/pdf";
 import type { DocxLabels } from "@one-resume/docx";
 import { basename } from "node:path";
 
-export const SUPPORTED_LOCALES: string[] = ["en", "it"];
+export const SUPPORTED_LOCALES = ["en", "it"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 /** Detect the locale from a markdown file name: `it-cv.md` → `"it"`, else `"en"`. */

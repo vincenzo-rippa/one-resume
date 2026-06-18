@@ -1,35 +1,46 @@
 import type { RouterContext } from "@koa/router";
 import { buildContent, ContentError } from "@one-resume/content";
-import type { ContentRepository } from "../ports.ts";
 import { IoError } from "../errors.ts";
 
+/** Reject anything that isn't a safe, relative `.md` path (no traversal / absolute). */
+function assertSafePath(ctx: RouterContext, path: string, type: string): void {
+  const isSafe =
+    path.endsWith(".md") &&
+    !path.includes("..") &&
+    !path.startsWith("/") &&
+    !/^[a-zA-Z]:[\\/]/.test(path);
+  ctx.assert(
+    isSafe,
+    400,
+    `'${type}' query parameter must be a relative .md filepath: ${path}`,
+  );
+}
+
 export async function getContent(ctx: RouterContext): Promise<void> {
+  const repo = ctx.contentRepository;
+  const { cv, projects } = ctx.query;
+
+  ctx.assert(
+    typeof cv === "string" && cv.length > 0,
+    400,
+    "'cv' query parameter is required and must be a string",
+  );
+  assertSafePath(ctx, cv, "cv");
+
+  const cvMarkdown = await repo.getContent(cv);
+
+  let projectsMarkdown: string | undefined;
+  if (typeof projects === "string" && projects.length > 0) {
+    assertSafePath(ctx, projects, "projects");
+    projectsMarkdown = await repo.getContent(projects);
+  }
+
   try {
-    const repo = ctx.contentRepository as ContentRepository;
-    const { cv, projects } = ctx.query;
-
-    ctx.assert(
-      typeof cv === "string" && cv.length > 0,
-      400,
-      "'cv' query parameter is required, must be a string",
-    );
-    let projectsMarkdown;
-    const cvMarkdown = await repo.getContent(cv);
-    if (typeof projects === "string" && projects.length > 0) {
-      projectsMarkdown = await repo.getContent(projects);
-    }
-
-    const data = buildContent({ cvMarkdown, projectsMarkdown });
-    ctx.status = 200;
-    ctx.body = data;
+    ctx.body = buildContent({ cvMarkdown, projectsMarkdown });
   } catch (err) {
-    if (err instanceof IoError) {
-      ctx.status = err.status;
-    } else if (err instanceof ContentError) {
-      ctx.status = 200;
-    } else {
-      ctx.status = 500;
+    if (err instanceof ContentError) {
+      throw new IoError(422, err.message);
     }
-    ctx.body = err;
+    throw err;
   }
 }

@@ -21,7 +21,7 @@ export class GitHubRepository implements ContentRepository {
 
       if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
         throw new IoError(404, `No file found at path: ${path}`, {
-          ...this.githubConfig,
+          ...this.githubConfig.redacted(),
           path,
         });
       }
@@ -30,7 +30,7 @@ export class GitHubRepository implements ContentRepository {
     } catch (err) {
       if (err instanceof RequestError) {
         throw new IoError(502, err.message, {
-          ...this.githubConfig,
+          ...this.githubConfig.redacted(),
           path,
         });
       }
