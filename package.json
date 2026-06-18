@@ -1,29 +1,28 @@
 {
   "name": "one-resume",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Document pipeline for CV / projects / freelance résumés: markdown (from the pro-profile-source repo) → typed data via core-parser → Typst PDFs (export-pdf) + ATS DOCX (export-doc), plus locale modules for the pro-landing site. External paths are env-configurable — see .env.example.",
+  "description": "Document pipeline for CV / projects / freelance résumés: markdown (from the pro-profile-source repo) → typed data via @one-resume/parser → Typst PDFs (@one-resume/pdf) + ATS DOCX (@one-resume/docx), plus locale modules for the pro-landing site. External paths are env-configurable — see .env.example.",
   "engines": {
     "node": ">=22.0.0"
   },
   "workspaces": [
-    "core-parser",
-    "source-nodefs",
-    "export-pdf",
-    "export-doc",
-    "export-json"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
-    "parse": "node --import tsx source-nodefs/bin/cli.ts",
+    "one-resume": "tsx apps/cli/src/bin.ts",
+    "parse": "tsx apps/cli/src/bin.ts parse",
     "test": "npm run test --workspaces --if-present",
-    "pdf": "tsx export-pdf/scripts/build.ts",
-    "pdf:public": "tsx export-pdf/scripts/build.ts --public",
-    "pdf:all": "tsx export-pdf/scripts/build.ts --all",
-    "pdf:special": "tsx export-pdf/scripts/build.ts --special",
-    "doc": "tsx export-doc/scripts/build.ts",
-    "doc:all": "tsx export-doc/scripts/build.ts --all",
-    "sync-locales": "tsx export-json/scripts/build.ts"
+    "pdf": "tsx apps/cli/src/bin.ts pdf",
+    "pdf:public": "tsx apps/cli/src/bin.ts pdf --public",
+    "pdf:all": "tsx apps/cli/src/bin.ts pdf --all",
+    "pdf:special": "tsx apps/cli/src/bin.ts special",
+    "doc": "tsx apps/cli/src/bin.ts docx",
+    "doc:all": "tsx apps/cli/src/bin.ts docx --all",
+    "api": "tsx --env-file=apps/api/.env apps/api/src/app.ts",
+    "api:dev": "tsx watch --env-file=apps/api/.env apps/api/src/app.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

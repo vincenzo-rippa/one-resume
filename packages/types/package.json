@@ -1,0 +1,20 @@
+{
+  "name": "@one-resume/types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared domain interfaces for the one-resume pipeline (Profile, ParsedCv, Project, …). Zero runtime — consumed with `import type` only.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@one-resume/pdf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Typst-based CV PDF generator. Requires the typst CLI — install from https://typst.app/docs/install or via `winget install Typst.Typst` / `brew install typst`.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@one-resume/types": "*",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  }
+}

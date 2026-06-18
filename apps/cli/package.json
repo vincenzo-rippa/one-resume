@@ -1,0 +1,27 @@
+{
+  "name": "one-resume-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The one-resume command-line app: parse | pdf | docx | sync | check | special. Owns config, paths, targets, and fs I/O; orchestrates the @one-resume/* libraries.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "one-resume": "./src/bin.ts"
+  },
+  "dependencies": {
+    "@one-resume/types": "*",
+    "@one-resume/parser": "*",
+    "@one-resume/pdf": "*",
+    "@one-resume/docx": "*",
+    "@one-resume/content": "*",
+    "@one-resume/localization": "*",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.22.2",
+    "typescript": "^5.7.0"
+  }
+}

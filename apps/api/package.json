@@ -1,0 +1,32 @@
+{
+  "name": "one-resume-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Placeholder for the one-resume HTTP API (renders CV PDFs/DOCX on demand). Not yet implemented — see README.md.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "main": "app.ts",
+  "dependencies": {
+    "@koa/router": "^15.6.0",
+    "@one-resume/content": "*",
+    "@one-resume/docx": "*",
+    "@one-resume/localization": "*",
+    "@one-resume/pdf": "*",
+    "@one-resume/types": "*",
+    "http-errors": "^2.0.1",
+    "koa": "^3.2.1",
+    "koa-logger": "^4.0.0",
+    "koa-router": "^14.0.0",
+    "octokit": "^5.0.5"
+  },
+  "devDependencies": {
+    "@types/http-errors": "^2.0.5",
+    "@types/koa": "^3.0.3",
+    "@types/koa-logger": "^3.1.5",
+    "@types/node": "^22.19.21",
+    "tsx": "^4.22.2",
+    "typescript": "^5.9.3"
+  }
+}
