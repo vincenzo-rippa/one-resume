@@ -10,7 +10,7 @@ const app = new Koa();
 
 const PORT = process.env.PORT || 3000;
 
-app.context.contentRepository = new GitHubRepository(GitHubConfig.fromEnv());
+app.context.contentSource = new GitHubRepository(GitHubConfig.fromEnv());
 
 const router = AppRouter();
 

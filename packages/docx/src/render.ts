@@ -1,10 +1,10 @@
 // ATS DOCX renderer.
 //
-// From @one-resume/types to packed `.docx` bytes. The public entry points
-// (renderCv / renderFreelanceCv / renderProjects) return `Promise<Uint8Array>`
-// via `Packer` — no filesystem I/O; the caller writes the bytes (or streams
-// them from an HTTP response). Mirrors the @one-resume/pdf templates/ layout
-// conceptually: one entry point per kind (CV, freelance CV, standalone projects).
+// From @one-resume/domain to packed `.docx` bytes. `renderDocx` returns one
+// `Uint8Array` per parsed document (a CV or a standalone projects doc) via
+// `Packer` — no filesystem I/O, so the caller writes the bytes or streams them
+// from an HTTP response. Section titles + field labels come from the parsed data
+// (captured from the markdown); there are no injected label dictionaries.
 
 import {
   AlignmentType,
@@ -14,8 +14,14 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import type { ParsedCv, Profile, Period, Project } from "@one-resume/types";
-import type { DocxLabels } from "./labels.ts";
+import type {
+  ParsedCv,
+  ParsedProjects,
+  Period,
+  Profile,
+  Project,
+  ProjectField,
+} from "@one-resume/domain";
 import {
   FONT,
   LINE_BODY,
@@ -28,9 +34,9 @@ import {
 
 // ─── Inline helpers ─────────────────────────────────────────────────────────
 
-function formatPeriod(p: Period, labels: DocxLabels): string {
-  const end = p.end === "ongoing" ? labels.ongoing : p.end;
-  return `${p.start} – ${end}`;
+/** "start – end"; the end word is literal markdown text (no sentinel). */
+function formatPeriod(p: Period): string {
+  return `${p.start} – ${p.end}`;
 }
 
 interface BodyOpts {
@@ -99,44 +105,45 @@ function titleParagraph(text: string): Paragraph {
 // ─── Content assembly ───────────────────────────────────────────────────────
 
 /**
- * Builds the contact block from the parsed profile. ATS-flavored: each contact
- * value goes on the contact line, prefixed by a capitalised key (except
- * `email`, which is rendered bare). Portfolio goes on its own line so a
- * recruiter can spot the URL at a glance.
+ * The contact block from the parsed profile. The location goes on its own line;
+ * the captured contacts go on one line, each rendered "Label: value" or, for a
+ * bare (unlabelled) value such as an email, the value alone.
  */
-function buildContactLines(cv: Profile, labels: DocxLabels): string[] {
+function buildContactLines(cv: Profile): string[] {
   const lines: string[] = [];
 
-  if (cv.location?.based) {
-    const loc = cv.location.based;
-    const avail = cv.location.availability;
-    lines.push(avail ? `${loc} · ${avail}` : loc);
+  if (cv.location.based) {
+    const { based, availability } = cv.location;
+    lines.push(availability ? `${based} · ${availability}` : based);
   }
 
-  const bits: string[] = [];
-  for (const [key, val] of Object.entries(cv.contacts ?? {})) {
-    if (!val) continue;
-    if (key.toLowerCase() === "email") {
-      bits.push(val);
-    } else {
-      const label = key.charAt(0).toUpperCase() + key.slice(1);
-      bits.push(`${label}: ${val}`);
-    }
-  }
+  const bits = cv.contacts.map((c) => (c.label ? `${c.label}: ${c.value}` : c.value));
   if (bits.length > 0) lines.push(bits.join(" · "));
-
-  if (cv.portfolio) {
-    lines.push(`${labels.portfolio}: ${cv.portfolio}`);
-  }
 
   return lines;
 }
 
-function appendProject(
-  children: Paragraph[],
-  p: Project,
-  labels: DocxLabels,
-): void {
+/** A captured project field, rendered by its source: inline "Label: a, b" or a
+ *  labelled bullet list (e.g. highlights). */
+function appendField(children: Paragraph[], f: ProjectField): void {
+  if (f.inline) {
+    children.push(
+      body(`${f.label}: ${f.value.join(", ")}`, { after: SPACING.bodyAfter }),
+    );
+    return;
+  }
+  children.push(
+    body(f.label, {
+      bold: true,
+      after: SPACING.tightAfter,
+      keepLines: true,
+      keepNext: true,
+    }),
+  );
+  for (const v of f.value) children.push(bullet(v));
+}
+
+function appendProject(children: Paragraph[], p: Project): void {
   children.push(
     body(p.title, {
       bold: true,
@@ -147,35 +154,17 @@ function appendProject(
     }),
   );
   children.push(
-    body(formatPeriod(p.period, labels), {
+    body(formatPeriod(p.period), {
       italics: true,
       after: SPACING.tightAfter,
       keepLines: true,
       keepNext: true,
     }),
   );
-  if (p.associatedWith) {
-    children.push(
-      body(`${labels.associatedWith}: ${p.associatedWith}`, {
-        after: SPACING.tightAfter,
-        keepLines: true,
-        keepNext: true,
-      }),
-    );
-  }
   if (p.description) {
     children.push(body(p.description, { after: SPACING.bodyAfter }));
   }
-  for (const h of p.highlights) {
-    children.push(bullet(h));
-  }
-  if (p.technologies.length > 0) {
-    children.push(
-      body(`${labels.selectedTechnologies}: ${p.technologies.join(", ")}`, {
-        after: SPACING.bodyAfter,
-      }),
-    );
-  }
+  for (const f of p.fields) appendField(children, f);
 }
 
 // ─── Document assembly ──────────────────────────────────────────────────────
@@ -231,53 +220,34 @@ function buildDocument(children: Paragraph[]): Document {
   });
 }
 
-// ─── Document builders (internal) ───────────────────────────────────────────
-
-interface BuildCvOptions {
-  labels: DocxLabels;
-  /** Append `parsed.projects` as a Selected Projects section. Use for freelance CVs. */
-  includeProjects?: boolean;
-}
-
 /**
- * Builds a full CV document (main / derived / freelance). When `includeProjects`
- * is true, the embedded `parsed.projects` array is rendered as a Selected
- * Projects section between Education and the end of the document.
+ * A full CV document. The Selected Projects section is rendered only when
+ * `projects` is non-empty — one builder whether or not the CV embeds projects.
  *
  * The GDPR footer (`parsed.footer`) is intentionally NOT rendered: ATS
- * documents are sent to recruiters and parsers, and the privacy notice is
- * irrelevant noise in that context.
+ * documents go to recruiters and parsers, where the privacy notice is noise.
  */
-function buildCvDocument(parsed: ParsedCv, opts: BuildCvOptions): Document {
-  const { labels, includeProjects = false } = opts;
-  const { profile, experiences, education, projects } = parsed;
+function buildCvDocument(parsed: ParsedCv): Document {
+  const { profile, labels, experiences, education, projects } = parsed;
   const children: Paragraph[] = [];
 
-  if (profile.name) {
-    children.push(titleParagraph(profile.name));
-  }
+  if (profile.name) children.push(titleParagraph(profile.name));
 
-  for (const line of buildContactLines(profile, labels)) {
+  for (const line of buildContactLines(profile)) {
     children.push(body(line, { after: SPACING.contactAfter }));
   }
 
-  if (profile.headline) {
-    children.push(sectionHeading(profile.headline));
-  }
+  if (profile.headline) children.push(sectionHeading(profile.headline));
   if (profile.tagline) {
-    children.push(
-      body(profile.tagline, { italics: true, after: SPACING.bodyAfter }),
-    );
+    children.push(body(profile.tagline, { italics: true, after: SPACING.bodyAfter }));
   }
-  for (const p of profile.aboutParagraphs ?? []) {
+  for (const p of profile.aboutParagraphs) {
     children.push(body(p, { after: SPACING.bodyAfter }));
   }
 
-  if (profile.selectedTechnologies && profile.selectedTechnologies.length > 0) {
-    children.push(sectionHeading(labels.selectedTechnologies));
-    for (const t of profile.selectedTechnologies) {
-      children.push(bullet(t));
-    }
+  if (profile.selectedTechnologies.length > 0) {
+    children.push(sectionHeading(labels.technologies));
+    for (const t of profile.selectedTechnologies) children.push(bullet(t));
   }
 
   if (experiences.length > 0) {
@@ -294,7 +264,7 @@ function buildCvDocument(parsed: ParsedCv, opts: BuildCvOptions): Document {
       );
       const metaParts: string[] = [];
       if (job.location) metaParts.push(job.location);
-      metaParts.push(formatPeriod(job.period, labels));
+      metaParts.push(formatPeriod(job.period));
       children.push(
         body(metaParts.join(" | "), {
           after: SPACING.tightAfter,
@@ -302,18 +272,14 @@ function buildCvDocument(parsed: ParsedCv, opts: BuildCvOptions): Document {
           keepNext: job.description.length > 0,
         }),
       );
-      for (const b of job.description) {
-        children.push(bullet(b));
-      }
+      for (const b of job.description) children.push(bullet(b));
     }
   }
 
   if (education.length > 0) {
     children.push(sectionHeading(labels.education));
     for (const e of education) {
-      const titleLine = e.institution
-        ? `${e.title} @ ${e.institution}`
-        : e.title;
+      const titleLine = e.institution ? `${e.title} @ ${e.institution}` : e.title;
       children.push(
         body(titleLine, {
           bold: true,
@@ -324,36 +290,24 @@ function buildCvDocument(parsed: ParsedCv, opts: BuildCvOptions): Document {
         }),
       );
       if (e.subtitle) {
-        children.push(
-          body(e.subtitle, { italics: true, after: SPACING.bodyAfter }),
-        );
+        children.push(body(e.subtitle, { italics: true, after: SPACING.bodyAfter }));
       }
     }
   }
 
-  if (includeProjects && projects.length > 0) {
+  if (projects.length > 0) {
     children.push(sectionHeading(labels.projects));
-    for (const proj of projects) {
-      appendProject(children, proj, labels);
-    }
+    for (const proj of projects) appendProject(children, proj);
   }
 
   return buildDocument(children);
 }
 
-/**
- * Builds a standalone Selected Projects document (from content/projects/).
- * Used for `{lang}-projects-ats.docx` outputs.
- */
-function buildProjectsDocument(
-  projects: Project[],
-  labels: DocxLabels,
-): Document {
+/** A standalone Selected Projects document. */
+function buildProjectsDocument(parsed: ParsedProjects): Document {
   const children: Paragraph[] = [];
-  children.push(titleParagraph(labels.projects));
-  for (const p of projects) {
-    appendProject(children, p, labels);
-  }
+  children.push(titleParagraph(parsed.label));
+  for (const p of parsed.projects) appendProject(children, p);
   return buildDocument(children);
 }
 
@@ -364,26 +318,17 @@ function pack(doc: Document): Promise<Uint8Array> {
   return Packer.toBuffer(doc);
 }
 
-/** Render a main / derived CV to `.docx` bytes. */
-export function renderCv(
-  parsed: ParsedCv,
-  labels: DocxLabels,
-): Promise<Uint8Array> {
-  return pack(buildCvDocument(parsed, { labels }));
-}
-
-/** Render a freelance CV (with the embedded Selected Projects) to `.docx` bytes. */
-export function renderFreelanceCv(
-  parsed: ParsedCv,
-  labels: DocxLabels,
-): Promise<Uint8Array> {
-  return pack(buildCvDocument(parsed, { labels, includeProjects: true }));
-}
-
-/** Render a standalone Selected Projects document to `.docx` bytes. */
-export function renderProjects(
-  projects: Project[],
-  labels: DocxLabels,
-): Promise<Uint8Array> {
-  return pack(buildProjectsDocument(projects, labels));
+/**
+ * Render each parsed document to `.docx` bytes, in order. A ParsedCv becomes a
+ * CV document (with embedded projects when present); a ParsedProjects becomes a
+ * standalone projects document.
+ */
+export function renderDocx(
+  docs: (ParsedCv | ParsedProjects)[],
+): Promise<Uint8Array[]> {
+  return Promise.all(
+    docs.map((d) =>
+      pack("profile" in d ? buildCvDocument(d) : buildProjectsDocument(d)),
+    ),
+  );
 }

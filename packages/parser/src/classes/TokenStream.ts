@@ -1,23 +1,21 @@
 import type { Token, Tokens } from "marked";
-import ParseError from "./ParseError";
+import { ParseError } from "./ParseError.ts";
 
 /**
  * A cursor over a marked token list that owns the original source text and an
- * optional diagnostic label (`sourceName`). Readers ask it for the next
- * meaningful token and build `ParseError`s through `error()`, so no parser
- * context object has to be threaded around.
+ * optional diagnostic label (`sourceName`). It is the single home for
+ * token-shape recognition (headings, italic paragraphs, rules); readers ask it
+ * for typed tokens and build `ParseError`s through `error()`. It deals only in
+ * tokens — text normalization (helpers/inline, helpers/normalize) is a separate
+ * concern.
  */
-export default class TokenStream {
+export class TokenStream {
   private idx = 0;
   constructor(
     private readonly tokens: Token[],
     private readonly source: string,
     private readonly sourceName?: string,
   ) {}
-
-  peek(): Token | undefined {
-    return this.tokens[this.idx];
-  }
 
   /** Peek the next meaningful token (skips space and html-comment tokens). */
   peekMeaningful(): Token | undefined {
@@ -26,49 +24,47 @@ export default class TokenStream {
     return this.tokens[i];
   }
 
-  next(): Token | undefined {
-    return this.tokens[this.idx++];
+  /** Consume and return the next meaningful token; throws at EOF. */
+  consumeMeaningful(): Token {
+    this.consumeSkippable();
+    const token = this.tokens[this.idx++];
+    if (!token) throw this.error("unexpected end of file");
+    return token;
   }
 
-  consumeSkippable(): void {
+  /** Consume a heading at one of `depths`, or throw a labelled error. */
+  consumeHeading(depths: readonly number[], what: string): Tokens.Heading {
+    const token = this.consumeMeaningful();
+    if (
+      token.type !== "heading" ||
+      !depths.includes((token as Tokens.Heading).depth)
+    ) {
+      throw this.error(`expected ${what}, got ${token.type}`, token);
+    }
+    return token as Tokens.Heading;
+  }
+
+  /** Consume + return the next token iff it's an italic-only paragraph (`_…_`);
+   *  otherwise leave it in place and return undefined. */
+  consumeItalicParagraph(): Tokens.Paragraph | undefined {
+    const next = this.peekMeaningful();
+    if (!next || !this.isItalicOnlyParagraph(next)) return undefined;
+    this.consumeMeaningful();
+    return next as Tokens.Paragraph;
+  }
+
+  /** Skip an optional `---` horizontal rule (a presentational separator). */
+  skipHorizontalRule(): void {
+    if (this.peekMeaningful()?.type === "hr") this.consumeMeaningful();
+  }
+
+  private consumeSkippable(): void {
     while (
       this.idx < this.tokens.length &&
       this.isSkippable(this.tokens[this.idx])
     ) {
       this.idx++;
     }
-  }
-
-  consumeMeaningful(): Token {
-    this.consumeSkippable();
-    const token = this.tokens[this.idx++];
-    if (!token) {
-      throw this.error("unexpected end of file");
-    }
-    return token;
-  }
-
-  hasMore(): boolean {
-    this.consumeSkippable();
-    return this.idx < this.tokens.length;
-  }
-
-  peekedMeaningful_IsItalicOnlyParagraph(): boolean {
-    const next = this.peekMeaningful();
-    if (!next) return false;
-    return this.isItalicOnlyParagraph(next);
-  }
-
-  consumedMeaningful_IsItalicOnlyParagraph(): Token | undefined {
-    const next = this.consumeMeaningful();
-    if (next && this.isItalicOnlyParagraph(next)) return next;
-  }
-
-  private isItalicOnlyParagraph(token: Token): boolean {
-    if (token.type !== "paragraph") return false;
-    const para = token as Tokens.Paragraph;
-    if (!para.tokens || para.tokens.length !== 1) return false;
-    return para.tokens[0].type === "em";
   }
 
   private isSkippable(token: Token | undefined): boolean {
@@ -82,20 +78,22 @@ export default class TokenStream {
     return false;
   }
 
-  private tokenLine(token: Token): number | undefined {
-    if (!token) return undefined;
-    // Marked doesn't track line numbers directly; locate by raw text.
-    const raw = (token as { raw?: string }).raw;
+  private isItalicOnlyParagraph(token: Token): boolean {
+    if (token.type !== "paragraph") return false;
+    const para = token as Tokens.Paragraph;
+    return para.tokens?.length === 1 && para.tokens[0].type === "em";
+  }
+
+  private tokenLine(token: Token | undefined): number | undefined {
+    const raw = (token as { raw?: string } | undefined)?.raw;
     if (!raw) return undefined;
     const idx = this.source.indexOf(raw);
-    if (idx < 0) return undefined;
-    return this.source.slice(0, idx).split("\n").length;
+    return idx < 0 ? undefined : this.source.slice(0, idx).split("\n").length;
   }
 
   /**
-   * Build a ParseError tagged with this stream's source label and a line
-   * number. The line is computed from `token` when given, else from the most
-   * recently emitted token.
+   * Build a ParseError tagged with this stream's source label and a line number
+   * (from `token`, else the most recently emitted token).
    */
   error(message: string, token?: Token): ParseError {
     const probe = token ?? this.tokens[Math.max(0, this.idx - 1)];

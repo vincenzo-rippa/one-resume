@@ -1,12 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseProjects } from "../src/parseProjects.ts";
-import ParseError from "../src/classes/ParseError.ts";
+import { parse, ParseError } from "../src/index.ts";
 
-// Inline standalone-projects fixture (docs/CONTENT_CONTRACT.md §1.4).
-const VALID_PROJECTS = `# Projects
+// Standalone projects: same shape as embedded — a `## <heading>` (captured as
+// the label) + `### entries`.
+const PROJECTS = `## Selected Projects
 
-## Billing Platform
+### Billing Platform
 
 _2021 – 2022_
 
@@ -23,48 +23,46 @@ A multi-tenant billing system.
 
 ---
 
-## CLI Toolkit
+### CLI Toolkit
 
 _2020 – 2021_
 
-A developer CLI with no highlights listed.
-
-**Selected technologies:** Go
+A developer CLI with no extra fields.
 `;
 
-describe("parseProjects — contract", () => {
-  it("parses standalone projects", () => {
-    const projects = parseProjects(VALID_PROJECTS, { sourceName: "projects.md" });
-    assert.equal(projects.length, 2);
-    assert.deepEqual(projects[0], {
-      title: "Billing Platform",
-      period: { start: "2021", end: "2022" },
-      associatedWith: "Acme",
-      description: "A multi-tenant billing system.",
-      highlights: ["Processed millions of invoices", "99.99% uptime"],
-      technologies: ["TypeScript", "PostgreSQL", "Kafka"],
-    });
+describe("parse(projects)", () => {
+  const result = parse(PROJECTS, "projects");
+
+  it("captures the section label", () => {
+    assert.equal(result.label, "Selected Projects");
   });
 
-  it("treats a project without highlights as an empty array", () => {
-    const projects = parseProjects(VALID_PROJECTS, { sourceName: "projects.md" });
-    assert.deepEqual(projects[1].highlights, []);
-    assert.deepEqual(projects[1].technologies, ["Go"]);
-    assert.equal(projects[1].associatedWith, undefined);
+  it("parses entries with ordered generic fields", () => {
+    assert.equal(result.projects.length, 2);
+    const [a, b] = result.projects;
+    assert.equal(a.title, "Billing Platform");
+    assert.deepEqual(a.period, { start: "2021", end: "2022" });
+    assert.equal(a.description, "A multi-tenant billing system.");
+    assert.deepEqual(a.fields.map((f) => f.key), [
+      "associated with",
+      "highlights",
+      "selected technologies",
+    ]);
+    // `inline` follows the source: `**Label:** value` is inline, `**Label**` +
+    // bullet list is not — so the renderer never guesses from the value count.
+    assert.deepEqual(a.fields.map((f) => f.inline), [true, false, true]);
+    assert.deepEqual(a.fields[1].value, [
+      "Processed millions of invoices",
+      "99.99% uptime",
+    ]);
+    assert.deepEqual(a.fields[2].value, ["TypeScript", "PostgreSQL", "Kafka"]);
+
+    assert.equal(b.title, "CLI Toolkit");
+    assert.equal(b.description, "A developer CLI with no extra fields.");
+    assert.deepEqual(b.fields, []);
   });
 
-  it("throws ParseError when the H1 title is missing", () => {
-    const md = VALID_PROJECTS.replace("# Projects\n", "");
-    assert.throws(
-      () => parseProjects(md, { sourceName: "no-h1.md" }),
-      ParseError,
-    );
-  });
-
-  it("throws ParseError when there are no project entries", () => {
-    assert.throws(
-      () => parseProjects("# Projects\n", { sourceName: "empty.md" }),
-      ParseError,
-    );
+  it("throws when there are no project entries", () => {
+    assert.throws(() => parse("## Projects\n", "projects"), ParseError);
   });
 });

@@ -1,19 +1,18 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { parseCv } from "../src/parseCv.ts";
-import ParseError from "../src/classes/ParseError.ts";
+import { parse, ParseError } from "../src/index.ts";
 
-// A minimal CV that satisfies the full content contract (docs/CONTENT_CONTRACT.md).
-// Inline so the suite is self-contained — no sibling content repos required.
-const VALID_CV = `# Jane Doe
+const CV = `# Jane Doe
 
 Milan, Italy · Open to remote
 
-jane@example.com · LinkedIn: linkedin.com/in/jane
+jane@example.com · LinkedIn: linkedin.com/in/jane · Portfolio: jane.dev
 
 ## Senior Engineer
 
 _Building reliable systems._
+
+## About
 
 I build backend services.
 
@@ -43,19 +42,24 @@ _Graduated 2016_
 ---
 
 "I authorize the processing of personal data pursuant to GDPR 679/2016."
+
+<!-- keywords: backend, typescript, node -->
 `;
 
-describe("parseCv — contract", () => {
-  it("parses a minimal valid CV", () => {
-    const cv = parseCv(VALID_CV, { sourceName: "valid.md" });
+describe("parse(cv) — content + captured labels", () => {
+  const cv = parse(CV, "cv");
 
+  it("captures profile content", () => {
     assert.equal(cv.profile.name, "Jane Doe");
     assert.deepEqual(cv.profile.location, {
       based: "Milan, Italy",
       availability: "Open to remote",
     });
-    assert.equal(cv.profile.contacts.email, "mailto:jane@example.com");
-    assert.equal(cv.profile.contacts.linkedin, "https://linkedin.com/in/jane");
+    assert.deepEqual(cv.profile.contacts, [
+      { label: "", value: "jane@example.com" },
+      { label: "LinkedIn", value: "linkedin.com/in/jane" },
+      { label: "Portfolio", value: "jane.dev" },
+    ]);
     assert.equal(cv.profile.headline, "Senior Engineer");
     assert.equal(cv.profile.tagline, "Building reliable systems.");
     assert.equal(cv.profile.taglineShort, "");
@@ -65,79 +69,109 @@ describe("parseCv — contract", () => {
       "Node.js",
       "PostgreSQL",
     ]);
+  });
 
-    assert.equal(cv.experiences.length, 1);
-    assert.deepEqual(cv.experiences[0], {
-      company: "Acme",
-      role: "Backend Engineer",
-      location: "Milan",
-      period: { start: "2020", end: "ongoing" },
-      description: ["Built the billing pipeline", "Cut p99 latency in half"],
+  it("captures the section labels from the headings", () => {
+    assert.deepEqual(cv.labels, {
+      about: "About",
+      technologies: "Selected technologies",
+      experience: "Professional Experience",
+      education: "Education",
+      projects: "",
     });
+  });
 
-    assert.equal(cv.education.length, 1);
+  it("keeps the period end verbatim (no 'ongoing' sentinel)", () => {
+    assert.deepEqual(cv.experiences[0].period, {
+      start: "2020",
+      end: "Present",
+    });
+    assert.equal(cv.experiences[0].company, "Acme");
+    assert.equal(cv.experiences[0].role, "Backend Engineer");
+    assert.equal(cv.experiences[0].location, "Milan");
+    assert.equal(cv.experiences[0].description.length, 2);
+  });
+
+  it("parses education, footer, keywords; no embedded projects", () => {
     assert.deepEqual(cv.education[0], {
       title: "BSc Computer Science",
-      subtitle: "Graduated 2016",
       institution: "University of Milan",
+      subtitle: "Graduated 2016",
     });
-
-    assert.match(cv.footer, /GDPR 679\/2016/);
-    // A standard CV carries no embedded Selected Projects section.
+    assert.match(cv.footer, /^I authorize/);
+    assert.deepEqual(cv.keywords, ["backend", "typescript", "node"]);
     assert.deepEqual(cv.projects, []);
   });
+});
 
-  it("reads two taglines as long + short", () => {
-    const md = VALID_CV.replace(
-      "_Building reliable systems._\n",
-      "_Building reliable systems._\n\n_Reliability-first engineer._\n",
-    );
-    const cv = parseCv(md, { sourceName: "two-taglines.md" });
-    assert.equal(cv.profile.tagline, "Building reliable systems.");
-    assert.equal(cv.profile.taglineShort, "Reliability-first engineer.");
+const WITH_PROJECTS = CV.replace(
+  '---\n\n"I authorize',
+  `---
+
+## Selected Projects
+
+### Billing Platform
+
+_2021 – 2022_
+
+**Associated with:** Acme
+
+A multi-tenant billing system.
+
+**Highlights**
+
+- Processed millions of invoices
+
+**Selected technologies:** TypeScript, PostgreSQL
+
+---
+
+"I authorize`,
+);
+
+describe("parse(cv) — embedded projects", () => {
+  const cv = parse(WITH_PROJECTS, "cv");
+
+  it("captures the projects label + entries with ordered generic fields", () => {
+    assert.equal(cv.labels.projects, "Selected Projects");
+    assert.equal(cv.projects.length, 1);
+    const p = cv.projects[0];
+    assert.equal(p.title, "Billing Platform");
+    assert.deepEqual(p.period, { start: "2021", end: "2022" });
+    assert.equal(p.description, "A multi-tenant billing system.");
+    assert.deepEqual(p.fields, [
+      {
+        key: "associated with",
+        label: "Associated with",
+        value: ["Acme"],
+        inline: true,
+      },
+      {
+        key: "highlights",
+        label: "Highlights",
+        value: ["Processed millions of invoices"],
+        inline: false,
+      },
+      {
+        key: "selected technologies",
+        label: "Selected technologies",
+        value: ["TypeScript", "PostgreSQL"],
+        inline: true,
+      },
+    ]);
   });
+});
 
-  it("treats a CV with no tagline as empty taglines", () => {
-    const md = VALID_CV.replace("_Building reliable systems._\n\n", "");
-    const cv = parseCv(md, { sourceName: "no-tagline.md" });
-    assert.equal(cv.profile.tagline, "");
-    assert.equal(cv.profile.taglineShort, "");
+describe("parse(cv) — structural errors", () => {
+  it("throws when the first line is not an H1", () => {
+    assert.throws(() => parse("## Nope\n", "cv"), ParseError);
   });
-
-  it("reads keywords from the markdown comment", () => {
-    const md = VALID_CV.replace(
-      "# Jane Doe\n",
-      "# Jane Doe\n\n<!-- keywords: lead engineer, backend -->\n",
-    );
-    const cv = parseCv(md, { sourceName: "keywords.md" });
-    assert.deepEqual(cv.keywords, ["lead engineer", "backend"]);
+  it("throws when the About section heading is missing", () => {
+    assert.throws(() => parse(CV.replace("## About\n\n", ""), "cv"), ParseError);
   });
-
-  it("defaults keywords to [] with no keywords comment", () => {
-    const cv = parseCv(VALID_CV, { sourceName: "valid.md" });
-    assert.deepEqual(cv.keywords, []);
-  });
-
-  it("throws ParseError when the footer is missing", () => {
-    const md = VALID_CV.replace(
-      '"I authorize the processing of personal data pursuant to GDPR 679/2016."\n',
-      "",
-    );
-    assert.throws(() => parseCv(md, { sourceName: "no-footer.md" }), ParseError);
-  });
-
-  it("throws ParseError when the first line is not an H1 name", () => {
-    const md = VALID_CV.replace("# Jane Doe", "## Jane Doe");
-    assert.throws(() => parseCv(md, { sourceName: "no-h1.md" }), ParseError);
-  });
-
-  it("throws ParseError when the contacts line is missing", () => {
-    const md = VALID_CV.replace(
-      "jane@example.com · LinkedIn: linkedin.com/in/jane\n\n",
-      "",
-    );
+  it("throws when the footer is missing", () => {
     assert.throws(
-      () => parseCv(md, { sourceName: "no-contacts.md" }),
+      () => parse(CV.replace(/\n"I authorize[\s\S]*$/, "\n"), "cv"),
       ParseError,
     );
   });

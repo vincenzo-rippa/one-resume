@@ -1,71 +1,59 @@
-// `one-resume pdf` — CV / projects / freelance PDFs via @one-resume/pdf.
+// `one-resume pdf` — CV / projects PDFs via @one-resume/pdf.
 //
-//   one-resume pdf --input <md> [--template main|projects|freelance] [--out out.pdf]
+//   one-resume pdf --input <md> [--template cv|projects] [--out out.pdf]
 //   one-resume pdf --public    (4 PDFs → SITE_PUBLIC_CV_DIR)
-//   one-resume pdf --all       (every parser-known PDF → PRINTED_DIR/pdf)
+//   one-resume pdf --all       (every markdown under the content root → <out>/pdf)
 
-import { basename, extname, resolve } from "node:path";
-import { detectLocale, pdfLabels } from "@one-resume/localization";
+import { basename, extname, join, resolve } from "node:path";
 import { TypstPdf } from "@one-resume/pdf";
 import type { PipelineConfig } from "../config.ts";
+import { FsContentSource } from "../source.ts";
 import { loadParsedCv, loadParsedProjects } from "../loaders.ts";
 import { listDir } from "../io.ts";
-import { BULK_DIRS, PUBLIC_PDF_TARGETS, resolveKind } from "../manifest.ts";
+import { BULK_DIRS, PUBLIC_PDF_TARGETS, resolveKind } from "../targets.ts";
 import { getFlag, has } from "../args.ts";
 
 async function buildOne(
   typst: TypstPdf,
+  source: FsContentSource,
   outputDir: string,
-  opts: { inputPath: string; templateFlag?: string; outPath?: string },
+  opts: { input: string; templateFlag?: string; outPath?: string },
 ): Promise<void> {
-  const { inputPath, templateFlag, outPath } = opts;
-  const mdPath = resolve(process.cwd(), inputPath);
-  const mdName = basename(mdPath, extname(mdPath));
-  const locale = detectLocale(mdPath);
-  const kind = resolveKind(mdPath, templateFlag);
-  const labels = pdfLabels(locale);
-
-  const pdfOut = outPath
+  const { input, templateFlag, outPath } = opts;
+  const kind = resolveKind(input, templateFlag);
+  const out = outPath
     ? resolve(process.cwd(), outPath)
-    : resolve(outputDir, mdName + ".pdf");
+    : resolve(outputDir, basename(input, extname(input)) + ".pdf");
 
-  console.log(
-    `→ ${basename(mdPath)}  [${locale}/${kind}]  →  ${basename(pdfOut)}`,
-  );
+  const parsed =
+    kind === "projects"
+      ? await loadParsedProjects(source, input)
+      : await loadParsedCv(source, input);
 
-  if (kind === "projects") {
-    await typst.renderProjects(
-      await loadParsedProjects(mdPath),
-      labels,
-      pdfOut,
-    );
-  } else if (kind === "freelance") {
-    await typst.renderFreelanceCv(await loadParsedCv(mdPath), labels, pdfOut);
-  } else {
-    await typst.renderCv(await loadParsedCv(mdPath), labels, pdfOut);
-  }
-  console.log(`  ✓ ${pdfOut}`);
+  console.log(`→ ${basename(input)}  [${kind}]  →  ${basename(out)}`);
+  typst.renderPdf([{ parsed, out }]);
+  console.log(`  ✓ ${out}`);
 }
 
 async function buildAll(
   typst: TypstPdf,
+  source: FsContentSource,
   config: PipelineConfig,
   outputDir: string,
 ): Promise<void> {
-  const mdFiles: string[] = [];
+  const inputs: string[] = [];
   for (const rel of BULK_DIRS) {
-    const dir = resolve(config.contentDir, rel);
-    const names = await listDir(dir);
-    mdFiles.push(
-      ...names.filter((f) => f.endsWith(".md")).map((f) => resolve(dir, f)),
+    const names = await listDir(resolve(config.contentDir, rel));
+    inputs.push(
+      ...names.filter((f) => f.endsWith(".md")).map((f) => join(rel, f)),
     );
   }
-  if (mdFiles.length === 0) {
+  if (inputs.length === 0) {
     console.error(`No markdown files found under ${config.contentDir}`);
     process.exit(1);
   }
-  for (const mdPath of mdFiles) {
-    await buildOne(typst, outputDir, { inputPath: mdPath });
+  for (const input of inputs) {
+    await buildOne(typst, source, outputDir, { input });
   }
 }
 
@@ -74,6 +62,7 @@ export async function runPdf(
   args: string[],
 ): Promise<void> {
   const outputDir = resolve(config.outputDir, "pdf");
+  const source = new FsContentSource(config.contentDir);
   const wantsPublic = has(args, "public");
   const wantsAll = has(args, "all");
   const inputPath = getFlag(args, "input");
@@ -81,9 +70,9 @@ export async function runPdf(
   if (!wantsPublic && !wantsAll && !inputPath) {
     console.error(
       "Usage:\n" +
-        "  one-resume pdf --input <path-to-md> [--template main|projects|freelance] [--out output.pdf]\n" +
+        "  one-resume pdf --input <path-to-md> [--template cv|projects] [--out output.pdf]\n" +
         "  one-resume pdf --public        (4 PDFs → SITE_PUBLIC_CV_DIR)\n" +
-        "  one-resume pdf --all           (every parser-known PDF → PRINTED_DIR/pdf)",
+        "  one-resume pdf --all           (every markdown under the content root)",
     );
     process.exit(1);
   }
@@ -93,16 +82,16 @@ export async function runPdf(
 
   if (wantsPublic) {
     for (const t of PUBLIC_PDF_TARGETS) {
-      await buildOne(typst, outputDir, {
-        inputPath: resolve(config.contentDir, t.input),
+      await buildOne(typst, source, outputDir, {
+        input: t.input,
         outPath: resolve(config.sitePublicCvDir, t.out),
       });
     }
   } else if (wantsAll) {
-    await buildAll(typst, config, outputDir);
+    await buildAll(typst, source, config, outputDir);
   } else {
-    await buildOne(typst, outputDir, {
-      inputPath: inputPath!,
+    await buildOne(typst, source, outputDir, {
+      input: resolve(process.cwd(), inputPath!),
       templateFlag: getFlag(args, "template"),
       outPath: getFlag(args, "out"),
     });

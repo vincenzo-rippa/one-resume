@@ -16,7 +16,7 @@
     "test": "node --import tsx --test \"test/**/*.test.ts\""
   },
   "dependencies": {
-    "@one-resume/types": "*",
+    "@one-resume/domain": "*",
     "marked": "^14.1.4"
   },
   "devDependencies": {

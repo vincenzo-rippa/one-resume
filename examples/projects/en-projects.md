@@ -1,6 +1,6 @@
-# Projects
+## Selected Projects
 
-## Ledger Pipeline
+### Ledger Pipeline
 
 _2022 – 2023_
 
@@ -17,7 +17,7 @@ A append-only billing ledger that ingests usage events and emits reconciled invo
 
 ---
 
-## Edge Cache
+### Edge Cache
 
 _2020 – 2021_
 

@@ -1,8 +1,7 @@
 # one-resume-api
 
-HTTP API (Koa) that serves parsed CV **content** and per-locale **labels**,
-sourcing markdown from a GitHub repo via `octokit`. Built on the `@one-resume/*`
-libraries.
+HTTP API (Koa) that serves parsed CV **content**, sourcing markdown from a GitHub
+repo via `octokit`. Built on the `@one-resume/*` libraries.
 
 ## Endpoints
 
@@ -10,8 +9,6 @@ libraries.
 | ------ | ------------------------- | ------------------------------------------------------- |
 | `ALL`  | `/health`                 | Liveness probe (`{ uptime, message, timestamp }`).      |
 | `GET`  | `/v1/content?cv=<path>&projects=<path>` | Parsed content JSON for the given markdown path(s). `cv` is required; both must be relative `.md` paths. |
-| `GET`  | `/v1/labels/pdf/:locale`  | PDF label set for `en` / `it`.                          |
-| `GET`  | `/v1/labels/docx/:locale` | DOCX label set for `en` / `it`.                         |
 
 All routes except `/health` require an `X-API-KEY` header matching `API_KEY`.
 

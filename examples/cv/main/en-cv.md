@@ -2,13 +2,13 @@
 
 Berlin, Germany · Open to remote
 
-alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo
-
-Portfolio · alexmorgan.example.dev
+alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo · Portfolio: alexmorgan.example.dev
 
 ## Senior Software Engineer
 
 _Backend engineer who turns tangled systems into boring, reliable ones._
+
+## About
 
 I design and operate backend services for high-traffic products, with a bias for clear contracts, observability, and shipping in small, reversible steps.
 

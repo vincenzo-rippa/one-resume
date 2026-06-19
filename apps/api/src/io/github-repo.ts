@@ -1,16 +1,16 @@
 import { Octokit, RequestError } from "octokit";
+import type { ContentSource } from "@one-resume/content";
 import { GitHubConfig } from "./github-config.ts";
-import type { ContentRepository } from "../ports.ts";
 import { IoError } from "../errors.ts";
 
-export class GitHubRepository implements ContentRepository {
+export class GitHubRepository implements ContentSource {
   private readonly octokit: Octokit;
 
   constructor(private readonly githubConfig: GitHubConfig) {
     this.octokit = new Octokit({ auth: this.githubConfig.gitHubPat });
   }
 
-  async getContent(path: string): Promise<string> {
+  async read(path: string): Promise<string> {
     try {
       const { data } = await this.octokit.rest.repos.getContent({
         owner: this.githubConfig.gitHubOwner,

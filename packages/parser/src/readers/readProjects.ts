@@ -1,28 +1,35 @@
-import { type Tokens } from "marked";
-import type { Project } from "@one-resume/types";
-import TokenStream from "../classes/TokenStream.ts";
-import { inlineToPlain } from "../helpers/inlineRendering.ts";
-import { normalizeText } from "../helpers/normalize.ts";
+import type { Tokens } from "marked";
+import type { Project, ProjectField } from "@one-resume/domain";
+import { TokenStream } from "../classes/TokenStream.ts";
+import { plainText } from "../helpers/inline.ts";
 import { parsePeriod } from "../helpers/period.ts";
 
-// Recognized inline-paragraph labels (case-insensitive, EN + IT).
-const ASSOCIATED_LABELS = ["associated with", "associato a"];
-const TECHNOLOGIES_LABELS = ["selected technologies", "tecnologie selezionate"];
-// `**Highlights**` paragraph that simply heads the bullet list below it.
-// The list items become `Project.highlights`; the header paragraph is skipped.
-const HIGHLIGHTS_HEADER_LABELS = [
-  "highlights",
-  "punti salienti",
-  "punti chiave",
-];
+/**
+ * The optional projects section between Education and the footer of a CV. By
+ * contract the only thing that may appear there is the projects section, so ANY
+ * H2 here is it (title captured); a paragraph means there is none (the footer).
+ */
+export function readOptionalProjectsSection(stream: TokenStream): {
+  label: string;
+  projects: Project[];
+} {
+  stream.skipHorizontalRule();
+  const next = stream.peekMeaningful();
+  if (!next || next.type !== "heading" || (next as Tokens.Heading).depth !== 2) {
+    return { label: "", projects: [] };
+  }
+  const label = plainText(stream.consumeHeading([2], "## Projects").tokens);
+  const projects = readProjectsBlock(stream, 3);
+  stream.skipHorizontalRule();
+  return { label, projects };
+}
 
 /**
- * Reads consecutive project entries until the next HR / heading at a
- * shallower-or-equal depth / EOF. Each project's heading must be at
- * `projectDepth`. Returns an empty array when no projects are present.
- *
- * Exposed so parseCv can reuse it for freelance CVs that embed a
- * "## Selected Projects" section (entries at H3).
+ * Read consecutive project entries (each heading at `projectDepth`) until the
+ * next HR / heading at a shallower-or-equal depth / EOF. Positional and
+ * language-agnostic — no label dictionaries. A project body is prose
+ * (description) plus ordered labelled fields: `**Label:** value` (inline) and
+ * `**Label**` followed by a bullet list (list-valued).
  */
 export function readProjectsBlock(
   stream: TokenStream,
@@ -33,16 +40,10 @@ export function readProjectsBlock(
     const next = stream.peekMeaningful();
     if (!next) break;
     if (next.type === "hr") {
-      // Separator between projects (or just before the section ends). Consume
-      // and continue — the next iteration decides whether more projects follow.
       stream.consumeMeaningful();
       continue;
     }
-    // Any non-heading token (footer paragraph, etc.) ends the section.
     if (next.type !== "heading") break;
-    // Heading at a different depth than projectDepth also ends the section
-    // (shallower = outer section; deeper would be a malformed entry — the
-    // body reader of the previous project would have stopped on it).
     if ((next as Tokens.Heading).depth !== projectDepth) break;
     projects.push(readOneProject(stream, projectDepth));
   }
@@ -50,165 +51,89 @@ export function readProjectsBlock(
 }
 
 function readOneProject(stream: TokenStream, projectDepth: number): Project {
-  const heading = stream.consumeMeaningful();
-  if (
-    heading.type !== "heading" ||
-    (heading as Tokens.Heading).depth !== projectDepth
-  ) {
-    throw stream.error(
-      `expected H${projectDepth} project title heading, got ${heading.type}` +
-        (heading.type === "heading"
-          ? ` (depth ${(heading as Tokens.Heading).depth})`
-          : ""),
-      heading,
-    );
-  }
-  const title = normalizeText(
-    inlineToPlain((heading as Tokens.Heading).tokens),
+  const title = plainText(
+    stream.consumeHeading([projectDepth], `an H${projectDepth} project title`)
+      .tokens,
   );
 
-  // Period: an italic-only paragraph.
-  const metaToken = stream.consumedMeaningful_IsItalicOnlyParagraph();
-  if (!metaToken) {
+  const meta = stream.consumeItalicParagraph();
+  if (!meta) {
     throw stream.error(
-      "expected italic line with date range after project heading",
-      metaToken,
+      "expected an italic date-range line after the project heading",
     );
   }
-  const periodText = normalizeText(
-    inlineToPlain(
-      ((metaToken as Tokens.Paragraph).tokens[0] as Tokens.Em).tokens,
-    ),
-  );
-  const period = parsePeriod(periodText);
+  const period = parsePeriod(plainText(meta.tokens));
   if (!period) {
-    throw stream.error(`unparseable date range "${periodText}"`, metaToken);
+    throw stream.error(`unparseable date range "${plainText(meta.tokens)}"`);
   }
 
-  let associatedWith: string | undefined;
-  let technologies: string[] = [];
-  const highlights: string[] = [];
   const descriptionParts: string[] = [];
+  const fields: ProjectField[] = [];
 
-  // Body: everything up to the next hr / heading at projectDepth or shallower / EOF.
   while (true) {
     const next = stream.peekMeaningful();
-    if (!next) break;
-    if (next.type === "hr") break;
+    if (!next || next.type === "hr") break;
     if (
       next.type === "heading" &&
       (next as Tokens.Heading).depth <= projectDepth
     ) {
       break;
     }
-
     const token = stream.consumeMeaningful();
 
     if (token.type === "list") {
-      for (const item of (token as Tokens.List).items) {
-        highlights.push(normalizeText(inlineToPlain(item.tokens)));
+      // A list fills the value of the immediately-preceding label-only field
+      // (e.g. `**Highlights**` then a bullet list).
+      const last = fields[fields.length - 1];
+      if (!last || last.value.length > 0) {
+        throw stream.error(
+          "a bullet list must follow a `**Label**` line in a project entry",
+          token,
+        );
       }
+      last.value = (token as Tokens.List).items.map((it) => plainText(it.tokens));
       continue;
     }
 
     if (token.type === "paragraph") {
-      const para = token as Tokens.Paragraph;
-
-      // `**Highlights**` is a header marker, not prose. Skip it; the bullet
-      // list that follows will populate `highlights`.
-      if (isStrongOnlyParagraph(para, HIGHLIGHTS_HEADER_LABELS)) continue;
-
-      const labelled = readLabelledParagraph(para);
-      if (labelled?.kind === "associated") {
-        associatedWith = labelled.value;
-        continue;
-      }
-      if (labelled?.kind === "technologies") {
-        technologies = splitCommaList(labelled.value);
-        continue;
-      }
-      // Plain prose — part of the description.
-      descriptionParts.push(normalizeText(inlineToPlain(para.tokens)));
+      const field = readLabelledParagraph(token as Tokens.Paragraph);
+      if (field) fields.push(field);
+      else descriptionParts.push(plainText((token as Tokens.Paragraph).tokens));
       continue;
     }
 
-    throw stream.error(
-      `unexpected token in project block: ${token.type}`,
-      token,
-    );
+    throw stream.error(`unexpected token in project block: ${token.type}`, token);
   }
 
-  const project: Project = {
-    title,
-    period,
-    description: descriptionParts.join(" "),
-    highlights,
-    technologies,
-  };
-  if (associatedWith) project.associatedWith = associatedWith;
-  return project;
+  return { title, period, description: descriptionParts.join(" "), fields };
 }
 
 /**
- * Recognizes a `**Label:** value` paragraph. Returns the kind + value when the
- * leading bold run matches a known label, otherwise undefined (plain prose).
+ * A `**Label:** value` / `**Label**` paragraph → a ProjectField. Returns
+ * undefined for plain prose. `key` is the normalized (lowercased) label; an
+ * inline value is comma-split; a label-only paragraph yields an empty value
+ * (filled by a following list).
  */
 function readLabelledParagraph(
   para: Tokens.Paragraph,
-): { kind: "associated" | "technologies"; value: string } | undefined {
+): ProjectField | undefined {
   const tokens = para.tokens;
   if (!tokens || tokens.length === 0 || tokens[0].type !== "strong") {
     return undefined;
   }
-  const label = normalizeText(
-    inlineToPlain((tokens[0] as Tokens.Strong).tokens),
-  )
-    .toLowerCase()
+  const label = plainText((tokens[0] as Tokens.Strong).tokens)
     .replace(/:$/, "")
     .trim();
-  // Value is everything after the bold run; tolerate a colon left outside it.
-  const value = normalizeText(inlineToPlain(tokens.slice(1))).replace(
-    /^:\s*/,
-    "",
-  );
-  if (ASSOCIATED_LABELS.includes(label)) return { kind: "associated", value };
-  if (TECHNOLOGIES_LABELS.includes(label)) {
-    return { kind: "technologies", value };
-  }
-  return undefined;
-}
-
-/**
- * True for paragraphs that consist of nothing but a `**Label**` strong run
- * whose label text matches one of `labels`. Used to detect bare section
- * markers like `**Highlights**` that head a following bullet list.
- */
-function isStrongOnlyParagraph(
-  para: Tokens.Paragraph,
-  labels: string[],
-): boolean {
-  const tokens = para.tokens;
-  if (!tokens || tokens.length === 0 || tokens[0].type !== "strong") {
-    return false;
-  }
-  const rest = tokens
-    .slice(1)
-    .filter(
-      (t) => !(t.type === "text" && /^\s*$/.test((t as Tokens.Text).text)),
-    );
-  if (rest.length > 0) return false;
-  const label = normalizeText(
-    inlineToPlain((tokens[0] as Tokens.Strong).tokens),
-  )
-    .toLowerCase()
-    .replace(/:$/, "")
-    .trim();
-  return labels.includes(label);
-}
-
-function splitCommaList(text: string): string[] {
-  return text
-    .split(",")
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+  const rest = plainText(tokens.slice(1)).replace(/^:\s*/, "");
+  // Inline text after the label (`**Label:** a, b`) → an inline, comma-split
+  // field. A label-only paragraph (`**Label**`) is a list field whose value a
+  // following bullet list fills.
+  const inline = rest.length > 0;
+  const value = inline
+    ? rest
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : [];
+  return { key: label.toLowerCase(), label, value, inline };
 }

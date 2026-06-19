@@ -1,3 +1,3 @@
-export { TypstPdf, type SpecialPayload } from "./typstPdf.ts";
+export { TypstPdf } from "./typstPdf.ts";
+export type { PdfJob } from "./typstPdf.ts";
 export { PdfError } from "./errors.ts";
-export type { PdfLabels } from "./labels.ts";

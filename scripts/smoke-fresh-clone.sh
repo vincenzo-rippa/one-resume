@@ -36,7 +36,7 @@ EXPECTED=(
   out/pdf/en-cv-freelance.pdf
   out/ats/cv/main/en-cv-ats.docx
   out/ats/projects/en-projects-ats.docx
-  out/ats/freelance/en-cv-freelance-ats.docx
+  out/ats/cv/derived/en-cv-freelance-ats.docx
   out/locales/en/content.json
   out/locales/it/content.json
 )

@@ -1,23 +1,26 @@
-// The single place for build targets, output naming, and kind/template
-// resolution shared across the pdf / docx / sync / special commands.
+// The hardcoded build targets, output naming, and kind resolution for the CLI's
+// bulk/public commands. These are CLI-local (a local tool may carry its own
+// target lists); a later manifest runner replaces them with JSON manifests for
+// other consumers.
 
 import { basename, dirname, extname, relative, resolve } from "node:path";
 
-/** CV kind, derived from the filename or an explicit --template flag. */
-export type Kind = "cv" | "freelance" | "projects";
+/**
+ * What to parse a markdown file as: a `cv` (which may embed a projects section)
+ * or a standalone `projects` document. There is no separate variant for a CV
+ * with embedded projects — the parser captures them when present and the single
+ * `cv` template renders them.
+ */
+export type Kind = "cv" | "projects";
 
 /**
- * Resolve the kind from the input filename, overridable with `--template`.
- * `main` is accepted as an alias for `cv` (the docx command's wording).
+ * Resolve the kind from the input filename, overridable with `--template`
+ * (`cv` or `projects`; `main` is accepted as an alias for `cv`).
  */
 export function resolveKind(mdPath: string, templateFlag?: string): Kind {
-  if (templateFlag === "main" || templateFlag === "cv") return "cv";
-  if (templateFlag === "freelance") return "freelance";
   if (templateFlag === "projects") return "projects";
-  const name = basename(mdPath);
-  if (name.includes("freelance")) return "freelance";
-  if (name.includes("projects")) return "projects";
-  return "cv";
+  if (templateFlag === "cv" || templateFlag === "main") return "cv";
+  return basename(mdPath).includes("projects") ? "projects" : "cv";
 }
 
 // ─── Bulk source dirs (--all), relative to contentDir ────────────────────────
@@ -26,7 +29,6 @@ export const BULK_DIRS = [
   "cv/main",
   "cv/derived",
   "projects",
-  "freelance",
 ] as const;
 
 // ─── Public PDF targets (--public): the 4 PDFs the site ships ────────────────
@@ -61,11 +63,6 @@ export const SYNC_TARGETS: SyncTarget[] = [
     out: "it/content.json",
   },
 ];
-
-// ─── Special (private Italian CV with photo) ─────────────────────────────────
-
-export const SPECIAL_CV_SOURCE = "cv/main/it-cv.md";
-export const SPECIAL_SIDECAR_SOURCE = "special/it-special.meta.yaml";
 
 // ─── Output naming ───────────────────────────────────────────────────────────
 

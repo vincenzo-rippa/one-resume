@@ -5,11 +5,12 @@
 //   one-resume check               fail if a committed content.json is stale
 
 import { resolve } from "node:path";
-import { buildContent } from "@one-resume/content";
+import { loadContent } from "@one-resume/content";
 import { checkStringifiedContent } from "./sync-check.ts";
 import type { PipelineConfig } from "../config.ts";
-import { readText, readTextRequired, write } from "../io.ts";
-import { SYNC_TARGETS } from "../manifest.ts";
+import { FsContentSource } from "../source.ts";
+import { readText, write } from "../io.ts";
+import { SYNC_TARGETS } from "../targets.ts";
 import { has } from "../args.ts";
 
 export async function runSync(
@@ -23,12 +24,9 @@ export async function runSync(
     return;
   }
   const dryRun = has(args, "dry-run");
+  const source = new FsContentSource(config.contentDir);
   for (const t of SYNC_TARGETS) {
-    const cv = await readTextRequired(resolve(config.contentDir, t.cv));
-    const projects = await readTextRequired(
-      resolve(config.contentDir, t.projects),
-    );
-    const built = buildContent({ cvMarkdown: cv, projectsMarkdown: projects });
+    const built = await loadContent(source, { cv: t.cv, projects: t.projects });
     const json = JSON.stringify(built, null, 2) + "\n";
 
     if (dryRun) {
@@ -44,12 +42,11 @@ export async function runSync(
 }
 
 export async function runCheck(config: PipelineConfig): Promise<void> {
+  const source = new FsContentSource(config.contentDir);
   let stale = false;
   for (const t of SYNC_TARGETS) {
-    const cv = await readTextRequired(resolve(config.contentDir, t.cv));
-    const projects = await readTextRequired(
-      resolve(config.contentDir, t.projects),
-    );
+    const cv = await source.read(t.cv);
+    const projects = await source.read(t.projects);
     const current = await readText(resolve(config.siteLocalesDir, t.out));
 
     if (current === null) {

@@ -1,9 +1,8 @@
 #import "tokens.typ": *
+#import "blocks.typ": *
 
-/// About section: paragraphs + selected technologies line.
-/// `extra` (optional content) is appended after the technologies line — used
-/// by the cv-special template for the languages / other-skills lines.
-#let cv-about(cv, labels, extra: none) = block(
+/// About section: paragraphs + the selected-technologies line.
+#let cv-about(cv, labels) = block(
   below: space-section,
   width: 100%,
 )[
@@ -18,15 +17,12 @@
     }
   ]
   #v(4pt)
-  // Selected technologies
+  // Selected technologies — captured heading as the label.
   #block(below: 0pt)[
     #set text(size: text-tech)
-    #text(weight: "semibold", fill: color-accent, labels.selectedTechnologies + ": ")#text(
+    #text(weight: "semibold", fill: color-accent, labels.technologies + ": ")#text(
       fill: color-body-soft,
       cv.selectedTechnologies.join(" · "),
     )
   ]
-
-  // Optional extra content (cv-special: languages + other skills)
-  #if extra != none { extra }
 ]

@@ -13,6 +13,8 @@ jane@example.com
 
 _Building reliable systems._
 
+## About
+
 I build backend services.
 
 ### Selected technologies
@@ -42,9 +44,9 @@ _Graduated 2016_
 "I authorize the processing of personal data pursuant to GDPR 679/2016."
 `;
 
-const PROJECTS = `# Projects
+const PROJECTS = `## Selected Projects
 
-## Billing Platform
+### Billing Platform
 
 _2021 – 2022_
 
@@ -54,10 +56,11 @@ A multi-tenant billing system.
 `;
 
 describe("buildContent", () => {
-  it("returns an object with the expected top-level keys", () => {
+  it("returns the parsed CV shape (with captured labels)", () => {
     const out = buildContent({ cvMarkdown: CV, projectsMarkdown: PROJECTS });
     assert.deepEqual(Object.keys(out), [
       "profile",
+      "labels",
       "experiences",
       "education",
       "projects",
@@ -66,14 +69,16 @@ describe("buildContent", () => {
     ]);
   });
 
-  it("uses standalone projects markdown when provided", () => {
+  it("uses standalone projects markdown — entries and section label — when provided", () => {
     const out = buildContent({ cvMarkdown: CV, projectsMarkdown: PROJECTS });
     assert.equal(out.projects[0].title, "Billing Platform");
+    assert.equal(out.labels.projects, "Selected Projects");
   });
 
-  it("falls back to the CV's own projects when none is given", () => {
+  it("falls back to the CV's own (empty) projects when none is given", () => {
     const out = buildContent({ cvMarkdown: CV });
     assert.deepEqual(out.projects, []);
+    assert.equal(out.labels.projects, "");
   });
 });
 

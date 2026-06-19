@@ -6,6 +6,7 @@
 import { writeFileSync, mkdirSync, writeSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { ParseError } from "@one-resume/parser";
+import { FsContentSource } from "../source.ts";
 import { loadParsedCv } from "../loaders.ts";
 
 /**
@@ -61,11 +62,11 @@ function parseArgs(argv: string[]): ParseArgs {
 
 export async function runParse(args: string[]): Promise<void> {
   const { input, out } = parseArgs(args);
-  // Resolve --input against the cwd (absolute paths short-circuit).
-  const inputPath = resolve(process.cwd(), input);
+  // Read against the cwd (absolute paths short-circuit inside the source).
+  const source = new FsContentSource(process.cwd());
 
   try {
-    const parsed = await loadParsedCv(inputPath);
+    const parsed = await loadParsedCv(source, input);
     const json = JSON.stringify(parsed, null, 2);
     if (out) {
       mkdirSync(dirname(resolve(out)), { recursive: true });

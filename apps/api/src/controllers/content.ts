@@ -1,5 +1,5 @@
 import type { RouterContext } from "@koa/router";
-import { buildContent, ContentError } from "@one-resume/content";
+import { loadContent, ContentError, type ContentJob } from "@one-resume/content";
 import { IoError } from "../errors.ts";
 
 /** Reject anything that isn't a safe, relative `.md` path (no traversal / absolute). */
@@ -17,7 +17,7 @@ function assertSafePath(ctx: RouterContext, path: string, type: string): void {
 }
 
 export async function getContent(ctx: RouterContext): Promise<void> {
-  const repo = ctx.contentRepository;
+  const source = ctx.contentSource;
   const { cv, projects } = ctx.query;
 
   ctx.assert(
@@ -27,16 +27,14 @@ export async function getContent(ctx: RouterContext): Promise<void> {
   );
   assertSafePath(ctx, cv, "cv");
 
-  const cvMarkdown = await repo.getContent(cv);
-
-  let projectsMarkdown: string | undefined;
+  const job: ContentJob = { cv };
   if (typeof projects === "string" && projects.length > 0) {
     assertSafePath(ctx, projects, "projects");
-    projectsMarkdown = await repo.getContent(projects);
+    job.projects = projects;
   }
 
   try {
-    ctx.body = buildContent({ cvMarkdown, projectsMarkdown });
+    ctx.body = await loadContent(source, job);
   } catch (err) {
     if (err instanceof ContentError) {
       throw new IoError(422, err.message);

@@ -1,6 +1,6 @@
-# Progetti
+## Progetti Selezionati
 
-## Ledger Pipeline
+### Ledger Pipeline
 
 _2022 – 2023_
 
@@ -17,7 +17,7 @@ Un registro di fatturazione append-only che acquisisce eventi di utilizzo ed eme
 
 ---
 
-## Edge Cache
+### Edge Cache
 
 _2020 – 2021_
 

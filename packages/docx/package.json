@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "ATS-friendly DOCX generator for parsed CVs / projects. Renders @one-resume/types data to .docx bytes via the `docx` npm package.",
+  "description": "ATS-friendly DOCX generator for parsed CVs / projects. Renders @one-resume/domain data to .docx bytes via the `docx` npm package.",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -13,7 +13,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@one-resume/types": "*",
+    "@one-resume/domain": "*",
     "docx": "^9.6.1"
   },
   "devDependencies": {

@@ -1,155 +1,139 @@
-# Architecture & decisions
+# Architecture
 
-How the one-resume pipeline is structured and the decisions behind the current
-shape. For the markdown source-format rules see
-[`core-parser/docs/CONTENT_CONTRACT.md`](core-parser/docs/CONTENT_CONTRACT.md);
-for commands and configuration see [`README.md`](README.md).
+`one-resume` is a small **ports-and-adapters** pipeline. A zero-runtime domain
+model sits at the centre; everything else adapts *into* it (parsing) or *out of*
+it (rendering), and two thin delivery mechanisms (a CLI and an HTTP API) wire it
+to the outside world.
 
-## Package graph
+For the markdown source rules see
+[the content contract](packages/parser/docs/CONTENT_CONTRACT.md); for commands
+and configuration see [`README.md`](README.md).
 
-The pipeline is a single Node monolith built from modular workspace packages.
-Dependencies point one way (acyclic):
+## The shape
 
 ```
-core-parser        pure markdown → typed data. marked only; no node:*, no yaml.
-  ▲                SourceResolver interface + read→parse loaders + the parsers.
-  │
-source-nodefs      the node I/O layer. FileSystemSource (the fs SourceResolver,
-  ▲                plus write/copy/list + the resolved pipeline config),
-  │                loadConfig, and the debug `core-parse` CLI.
-  │
-  ├── export-json   parser output → the site's per-language content.json.
-  ├── export-doc    parser output → ATS-friendly DOCX (docx).
-  └── export-pdf    parser output → Typst PDFs. Owns the only surviving YAML
-                    sidecar (cv-special) in its src/special/ submodule.
-
-  (api — future — gets its own SourceResolver impl and reuses export-json's
-   buildContent; it depends on core-parser, not source-nodefs.)
+                         markdown
+                            │
+             parse(md,type) │  input adapter  →  @one-resume/parser
+                            ▼
+                 ┌────────────────────┐
+                 │  @one-resume/domain │   ParsedCv / ParsedProjects —
+                 │  (interfaces only,  │   the model every package shares;
+                 │   zero runtime)     │   depends on nothing.
+                 └────────────────────┘
+                            │  output adapters
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+  @one-resume/pdf     @one-resume/docx    @one-resume/content
+   Typst → PDF         → .docx bytes        → content.json
+        └─────────┬─────────┴─────────┬─────────┘
+                  ▼                   ▼            delivery
+              apps/cli             apps/api
+        (FsContentSource)     (GitHubRepository)
 ```
 
-Why the split: `core-parser` is the reusable, environment-free core — it can run
-anywhere a string can be produced (a serverless function, a browser, a test). All
-filesystem and pipeline-path concerns live one layer out in `source-nodefs`, so a
-future remote source (GitHub, S3) is a new `SourceResolver` implementation, not a
-change to the parser.
+Dependencies are acyclic and point inward: every package depends on
+`@one-resume/domain` and on nothing else of ours. The renderers don't even import
+the parser — they take the already-parsed data.
 
-## core-parser is pure
+## Packages
 
-`core-parser/src` imports **zero `node:*` modules** and no `yaml`. Its only
-runtime dependency is `marked`. `@types/node` stays a devDependency for the test
-runner only. Public API (named exports):
+- **`@one-resume/domain`** — the interfaces (`ParsedCv`, `Profile`, `Contact`,
+  `Experience`, `Education`, `Project`, `ProjectField`, `Period`, `SectionLabels`,
+  `Location`). Zero runtime: consumed with `import type` only. Deliberately *not*
+  a TS `@types/*` shim and *not* a `core` — there is no shared runtime to gather,
+  because each package owns its own helpers.
+- **`@one-resume/parser`** — the input adapter: `parse(md, "cv" | "projects")`
+  (strongly-typed overloads). Reads structure positionally and **captures** the
+  section titles + project-field labels from the markdown. No anchors, no
+  dictionaries, no per-language branches.
+- **`@one-resume/pdf` / `@one-resume/docx`** — output adapters. They take the
+  parsed document and read its captured labels; no labels or `type` parameter is
+  passed in.
+- **`@one-resume/content`** — the website's output adapter, plus the
+  `ContentSource` port and `loadContent(source, job)`, the read-then-build use
+  case both apps share.
 
-- `parseCv(markdown, { sourceName? }): ParsedCv`
-- `parseProjects(markdown, { sourceName? }): ParsedProjects`
-- `ParseError`, and the output types.
+## Language-agnostic by construction
 
-`sourceName` is a diagnostic label only (it appears in `ParseError` messages as
-`sourceName:line: …`); the parser never reads from it.
+The earlier design injected `en`/`it` label dictionaries into the parser and
+renderers. This one doesn't — the parser captures whatever the markdown says:
 
-### No context object
+- **Section titles** (`## About`, `## Esperienza Professionale`, …) are captured
+  into `ParsedCv.labels` (one `SectionLabels` object). Renderers read
+  `parsed.labels`; they carry no wording of their own.
+- **Contacts** are captured verbatim and in order as `Contact[]`
+  (`{ label, value }`): `LinkedIn: …` keeps its label, a bare email has none. No
+  service is special-cased.
+- **Project fields** are captured generically as `ProjectField[]` with an
+  `inline` flag recording how the author wrote them — `**Label:** a, b` (one line)
+  vs `**Label**` + a bullet list — so a renderer honours intent without guessing
+  from the value count.
+- **The period end is literal** — the author writes `Present` / `Presente` /
+  `Présent`; it renders verbatim, with no sentinel.
 
-There is no `Ctx`. A `TokenStream(tokens, source, sourceName?)` owns the token
-cursor, the original source text, and the diagnostic label, and exposes
-`error(message, token?): ParseError` which computes the line number itself.
-Readers raise errors with `throw stream.error(...)` — they never thread a context
-or compute lines at the call site. `parsePeriod(text)` is pure and returns
-`Period | null`; the calling reader turns `null` into a `stream.error`.
+The proof: Spanish and French CV fixtures parse with *no* parser change (see the
+`@one-resume/parser` tests).
 
-## SourceResolver
+## Reading from anywhere: the `ContentSource` port
 
-The seam between "where the bytes come from" and the pure parser is one method:
+`@one-resume/content` defines the one seam between "where the bytes live" and the
+pure pipeline:
 
 ```ts
-interface SourceResolver {
-  read(sourceName: string): Promise<string | null>;
-}
+interface ContentSource { read(path: string): Promise<string>; }
 ```
 
-`read` returns `null` when the name does not resolve. The **caller** decides
-whether that is fatal: the loaders (`loadParsedCv` / `loadParsedProjects` in
-`core-parser/src/source`) treat the markdown as required and throw a clear error
-on `null`.
+The CLI implements it with `FsContentSource` (a filesystem root); the API
+implements it with `GitHubRepository` (octokit over a repo). `loadContent(source,
+job)` reads a job's CV (+ optional standalone projects) through the port and
+builds the content, so both delivery mechanisms share one read-then-build path.
+The HTTP request *is* the job: `GET /v1/content?cv=…&projects=…`.
 
-`FileSystemSource` (in `source-nodefs`) is the filesystem implementation. It
-resolves names against a `baseDir` (absolute names short-circuit), returns `null`
-on `ENOENT`, and adds concrete extras beyond the interface for node consumers:
-`write` (JSON/DOCX), `copy` (the special photo), `list` (the `--all` sweep), and a
-read-only `config` (the resolved pipeline paths) so importers locate files without
-re-resolving the environment. Only `read` is part of the `SourceResolver`
-contract.
+## Rendering
 
-## Parser output shape
+- **PDF** (`@one-resume/pdf`): a `TypstPdf` instance shells out to the Typst CLI,
+  pinned to the repo-bundled Inter fonts with `--ignore-system-fonts`, so output
+  is reproducible across machines. `renderPdf(jobs)` writes one PDF per
+  `{ parsed, out }`; the parsed *shape* selects the template — a CV uses the one
+  adaptive `cv` template (it renders an embedded projects section only when
+  present), a standalone projects document uses `projects`. There is no separate
+  "freelance" variant.
+- **DOCX** (`@one-resume/docx`): `renderDocx(docs)` returns `.docx` bytes per
+  document — no filesystem I/O, so the caller writes them or streams them from an
+  HTTP response. The GDPR footer is intentionally omitted (ATS noise).
 
-```ts
-interface ParsedCv {
-  profile: Profile;          // name, location, contacts, portfolio, headline,
-                             // tagline, taglineShort, aboutParagraphs,
-                             // selectedTechnologies
-  experiences: Experience[];
-  education: Education[];
-  projects: Project[];       // embedded freelance projects; [] for standard CVs
-  footer: string;            // GDPR/legal notice (root-level, not in profile)
-  keywords: string[];        // from the markdown comment (see below)
-}
+Neither format is byte-reproducible (Typst embeds a build timestamp; docx embeds
+dates), so behaviour is verified by rendering and inspecting, plus the parser and
+content test suites.
 
-type ParsedProjects = Project[];
-```
+## Conventions
 
-`ParsedProjects` is a bare alias for now — a named placeholder so a future
-projects object carrying its own metadata is a non-breaking change (YAGNI).
+- **TypeScript as source — no build step.** `tsx` runs `.ts` directly;
+  `moduleResolution: bundler`, `allowImportingTsExtensions`,
+  `verbatimModuleSyntax`. Cross-package imports use the package name; the
+  workspace symlinks resolve them.
+- **`import type` discipline.** `@one-resume/domain` has zero runtime exports;
+  every consumer imports its interfaces with `import type`.
+- **Apps stay test-free.** Logic lives in the packages (tested with inline,
+  sibling-free fixtures); the CLI and API are thin wiring.
 
-## Keywords live in the markdown
+## Document metadata
 
-SEO/ATS keywords are part of the CV markdown, as an HTML comment that is never
-rendered (consistent with the existing `<!-- Tagline -->` convention):
+SEO/ATS keywords live in the CV markdown as a never-rendered comment —
+`<!-- keywords: a, b, c -->` — read by the parser into `ParsedCv.keywords` and
+threaded into the PDF's `set document(keywords: …)`.
 
-```md
-<!-- keywords: technical lead, lead software engineer, API design -->
-```
+## Not in this repo
 
-`readers/readMetadata.ts` extracts them — `readMetadata(markdown): Metadata`,
-where `Metadata = { keywords: string[] }`. The comment may appear anywhere in the
-file; the value is comma-separated and trimmed. `Metadata` is the stable
-extension point: adding a second metadata field (or a general meta-block, or
-per-project metadata) is an internal change behind this interface — deferred
-until a real need appears.
+- The **markdown content** is private — a separate `profile-source` repo, or any
+  GitHub repo the API points at. The bundled `examples/` are CC0 stand-ins.
+- The **`special`** Italian photo-CV variant is its own private app, nested under
+  `apps/` and gitignored, reusing `@one-resume/parser` + `@one-resume/domain`.
 
-This replaced per-CV `*.meta.yaml` keyword sidecars. The markdown is now the
-single source of truth, and `core-parser` is yaml-free.
+## Deferred
 
-export-pdf threads `keywords` into the Typst payload and the CV templates
-`set document(keywords: …)`, so the generated PDFs carry the keyword metadata.
-
-## The one surviving sidecar
-
-The private **cv-special** variant still uses a YAML sidecar
-(`content/special/{lang}-special.meta.yaml`) for data that has no place in the CV
-prose: street address, legal-status line, spoken languages, other skills, and the
-headshot filename. That sidecar and its parser/validator live in
-`export-pdf/src/special/` — not in `core-parser`. The photo (binary) is copied via
-`FileSystemSource.copy`, never through `SourceResolver` (so `read`-only stays the
-whole interface). export-pdf is the only package that depends on `yaml`.
-
-## Behavior contract
-
-The refactor preserved behavior end to end:
-
-- Parser JSON output is unchanged except for the documented reshape
-  (`cvData` → `profile`, `footer`/`keywords` moved to the root).
-- `content.json` changes only by that reshape; keyword **values** are identical
-  (re-sourced from the markdown comment).
-- PDF and DOCX rendered content are unchanged. The single artifact addition is
-  **PDF keyword metadata** (`/Keywords`), which the baseline PDFs did not carry.
-
-PDFs and DOCX are not byte-reproducible (Typst embeds a build timestamp; docx
-embeds dates), so behavior is verified by comparing extracted PDF text, DOCX
-`document.xml`, and the parser/`content.json` output — all deterministic.
-
-## Deferred / watch-items
-
-- **Project-level metadata** and a **general meta-block** — deferred behind the
-  `readMetadata` seam until needed.
-- `loadConfig` (pipeline-specific output paths) shares `source-nodefs` with the
-  generic `FileSystemSource`; split if that coupling grates.
-- The debug CLI lives in `source-nodefs` as a `bin`; it can graduate to its own
-  package if it grows.
+- A **manifest runner** — JSON job manifests (`{ op, type, input, output }`) in
+  the content source, replacing the CLI's hardcoded target lists
+  (`apps/cli/src/targets.ts`). The `ContentSource` it needs already exists; the
+  manifest *is* the API request shape.

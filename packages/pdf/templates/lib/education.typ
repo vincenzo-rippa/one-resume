@@ -1,4 +1,5 @@
 #import "tokens.typ": *
+#import "blocks.typ": *
 
 /// Single education entry: `- ` bullet + Title [@ Institution] [— Subtitle].
 /// Matches the print reference where education shares the same bullet style

@@ -2,13 +2,13 @@
 
 Berlin, Germany · Open to remote
 
-alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo
-
-Portfolio · alexmorgan.example.dev
+alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo · Portfolio: alexmorgan.example.dev
 
 ## Freelance Backend Engineer
 
 _Independent engineer for teams that need a reliable backend, fast._
+
+## About
 
 I help product teams ship and stabilise backend services on short, well-scoped engagements: API design, data pipelines, and the unglamorous reliability work that keeps them running.
 

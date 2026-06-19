@@ -19,16 +19,6 @@ export const CACHE_DIR = resolve(TEMPLATES_DIR, ".cache");
 export const FONTS_DIR = resolve(PACKAGE_ROOT, "fonts");
 
 /**
- * A cache path under the Typst template dir, addressable from a template as
- * `.cache/<name>`. Used for the photo written next to the special template.
- */
-export function cachePath(ext: string): { abs: string; templateRel: string } {
-  mkdirSync(CACHE_DIR, { recursive: true });
-  const name = randomUUID() + ext;
-  return { abs: resolve(CACHE_DIR, name), templateRel: ".cache/" + name };
-}
-
-/**
  * Reachability probe: `typst --version`. A clean exit proves the binary is
  * present and runnable. Throws `PdfError` otherwise — this is the constructor
  * gate for `TypstPdf`.

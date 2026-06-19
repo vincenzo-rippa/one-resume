@@ -1,25 +1,35 @@
 #import "tokens.typ": *
+#import "blocks.typ": *
 
-/// Single project article: title, date · associated-with meta, description,
-/// optional highlight bullets, technologies line.
-#let project-article(project, ongoing-label, technology-label) = {
-  let end-label = if project.period.end == "ongoing" {
-    ongoing-label
+/// A single captured project field, rendered the way the author wrote it
+/// (`field.inline`): an inline field is "Label: a · b" on one line; a list
+/// field (e.g. `**Highlights**` + a bullet list) is a labelled bullet list.
+#let project-field(field) = {
+  v(bullet-spacing, weak: true)
+  set text(size: text-bullet)
+  if field.inline {
+    text(weight: "semibold", fill: color-accent, field.label + ": ")
+    text(fill: color-body, field.value.join(" · "))
   } else {
-    project.period.end
+    text(weight: "semibold", fill: color-accent, field.label)
+    set text(fill: color-body)
+    set par(leading: body-leading)
+    bullets(field.value)
   }
-  let meta = project.period.start + " — " + end-label
-  let assoc = project.at("associatedWith", default: "")
-  if assoc != "" { meta += " · " + assoc }
+}
+
+/// Single project article: title, period meta, description prose, then the
+/// captured fields in order.
+#let project-article(project) = {
+  let title = text(
+    size: text-exp-title,
+    weight: "bold",
+    fill: color-accent,
+    project.title,
+  )
 
   block(width: 100%, breakable: true)[
-    // Title + meta — kept together.
-    #block(breakable: false)[
-      #block(below: title-to-meta)[
-        #text(size: text-exp-title, weight: "bold", fill: color-accent, project.title)
-      ]
-      #text(size: text-meta, weight: "medium", fill: color-text-meta, meta)
-    ]
+    #article-head(title, fmt-period(project.period))
 
     #v(meta-to-bullets, weak: true)
 
@@ -30,24 +40,22 @@
       #project.description
     ]
 
-    // Optional highlight bullets.
-    #if project.highlights.len() > 0 {
-      v(bullet-spacing, weak: true)
-      set text(size: text-bullet, fill: color-body)
-      set par(leading: body-leading)
-      for item in project.highlights {
-        block(below: bullet-spacing)[– #item]
-      }
-    }
-
-    // Technologies line.
-    #if project.technologies.len() > 0 {
-      v(bullet-spacing, weak: true)
-      set text(size: text-tech)
-      text(weight: "semibold", fill: color-accent, technology-label + ": ");text(
-        fill: color-body-soft,
-        project.technologies.join(" · "),
-      )
+    // Captured fields, in markdown order.
+    #for field in project.fields {
+      project-field(field)
     }
   ]
 }
+
+/// Full projects section — shared by a CV's embedded projects and the
+/// standalone projects document. `label` is the captured section title.
+#let cv-projects(projects, label) = block(
+  below: space-section,
+  width: 100%,
+)[
+  #section-heading(label)
+  #for (i, project) in projects.enumerate() {
+    if i > 0 { v(article-pb, weak: true) }
+    project-article(project)
+  }
+]

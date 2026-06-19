@@ -7,19 +7,17 @@ import { runParse } from "./commands/parse.ts";
 import { runPdf } from "./commands/pdf.ts";
 import { runDocx } from "./commands/docx.ts";
 import { runSync, runCheck } from "./commands/sync.ts";
-import { runSpecial } from "./commands/special.ts";
 
 const USAGE = `one-resume <command> [options]
 
 Commands:
   parse <md> [--out <json>]                      parse a CV markdown → ParsedCv JSON
-  pdf   --input <md> [--template main|projects|freelance] [--out f]
+  pdf   --input <md> [--template cv|projects] [--out f]
   pdf   --public | --all
-  docx  --input <md> [--template main|freelance|projects] [--out f]
+  docx  --input <md> [--template cv|projects] [--out f]
   docx  --all
   sync  [--dry-run]                              write per-language content.json
   check                                          fail if a content.json is stale
-  special                                        private Italian CV (sidecar + photo)
 `;
 
 export async function main(argv: string[]): Promise<void> {
@@ -40,9 +38,6 @@ export async function main(argv: string[]): Promise<void> {
       return;
     case "check":
       await runCheck(config);
-      return;
-    case "special":
-      await runSpecial(config);
       return;
     case undefined:
     case "-h":

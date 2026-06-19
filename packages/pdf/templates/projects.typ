@@ -1,21 +1,18 @@
-// ─── Projects — selected-projects layout ─────────────────────────────────────
+// ─── Projects — standalone layout ────────────────────────────────────────────
 //
 // Compile with:
 //   typst compile --input data=.cache/<uuid>.json projects.typ output.pdf
 //
-// The build wrapper (export-pdf/scripts/build.ts) handles data injection.
-//
-// Data shape (JSON):
-//   { projects, labels }
-//   where labels = { projects, ongoing }
+// Data shape (JSON) — @one-resume/domain ParsedProjects:
+//   { label, projects }
+//   `label` is the captured section title; `projects` are the captured entries.
 
 #import "lib/tokens.typ": *
-#import "lib/project.typ": project-article
+#import "lib/project.typ": cv-projects
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
-#let d      = json(sys.inputs.at("data"))
-#let labels = d.labels
+#let d = json(sys.inputs.at("data"))
 
 // ── Page & text defaults ─────────────────────────────────────────────────────
 
@@ -36,13 +33,4 @@
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 
-#block(
-  below: space-section,
-  width: 100%,
-)[
-  #section-heading(labels.projects)
-  #for (i, project) in d.projects.enumerate() {
-    if i > 0 { v(article-pb, weak: true) }
-    project-article(project, labels.ongoing, labels.technologies)
-  }
-]
+#cv-projects(d.projects, d.label)

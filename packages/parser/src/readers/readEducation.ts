@@ -1,16 +1,21 @@
 import type { Tokens } from "marked";
-import { normalizeText } from "../helpers/normalize.ts";
-import { inlineToPlain } from "../helpers/inlineRendering.ts";
-import TokenStream from "../classes/TokenStream.ts";
-import type { Education } from "@one-resume/types";
+import type { Education } from "@one-resume/domain";
+import { TokenStream } from "../classes/TokenStream.ts";
+import { plainText } from "../helpers/inline.ts";
 
-export default function readEducation(stream: TokenStream): Education[] {
+/** The Education section: `## <label>` heading + bold `**Title @ Institution**` entries. */
+export function readEducationSection(stream: TokenStream): {
+  label: string;
+  education: Education[];
+} {
+  stream.skipHorizontalRule();
+  const label = plainText(stream.consumeHeading([2], "## Education").tokens);
+
   const entries: Education[] = [];
   while (true) {
     const next = stream.peekMeaningful();
-    if (!next) break;
+    if (!next || next.type === "hr") break;
     if (next.type === "heading" && (next as Tokens.Heading).depth === 2) break;
-    if (next.type === "hr") break;
     if (next.type !== "paragraph") {
       const token = stream.consumeMeaningful();
       throw stream.error(
@@ -23,58 +28,28 @@ export default function readEducation(stream: TokenStream): Education[] {
   if (entries.length === 0) {
     throw stream.error("no education entries found");
   }
-  return entries;
+  return { label, education: entries };
 }
+
 function readOneEducation(stream: TokenStream): Education {
   const token = stream.consumeMeaningful() as Tokens.Paragraph;
   const tokens = token.tokens;
   if (!tokens || tokens.length === 0 || tokens[0].type !== "strong") {
     throw stream.error(
-      "expected education entry to start with bold **Title** line",
+      "expected an education entry to start with a bold **Title** line",
       token,
     );
   }
-  const boldText = normalizeText(
-    inlineToPlain((tokens[0] as Tokens.Strong).tokens),
+  const { title, institution } = splitTitleInstitution(
+    plainText((tokens[0] as Tokens.Strong).tokens),
   );
-  const { title, institution } = splitTitleInstitution(boldText);
 
-  // After the bold, there may be a subtitle in one of three forms:
-  //   (a) trailing italic on same line:    **bold** _subtitle_
-  //   (b) em-dash + plain text inline:     **bold** — subtitle
-  //   (c) italic on the next paragraph (handled below as separate paragraph)
-  let subtitle: string | undefined;
-
-  // Inspect inline tokens after the strong.
-  const rest = tokens.slice(1);
-  if (rest.length > 0) {
-    // Trim leading whitespace text tokens, look at next.
-    const meaningful = rest.filter(
-      (t) => !(t.type === "text" && /^\s*$/.test((t as Tokens.Text).text)),
-    );
-    if (meaningful.length > 0) {
-      const first = meaningful[0];
-      if (first.type === "em") {
-        subtitle = normalizeText(inlineToPlain((first as Tokens.Em).tokens));
-      } else if (first.type === "text") {
-        const raw = normalizeText(inlineToPlain([first]));
-        // Form (b): leading " — text" / " – text" / " - text"
-        const m = raw.match(/^[\s]*[—–-]\s*(.+)$/);
-        if (m) subtitle = normalizeText(m[1]);
-        // Else: text continuation, treat as subtitle plain text if non-empty.
-        else if (raw.length > 0) subtitle = raw;
-      }
-    }
-  }
-
-  // Form (c): the next paragraph (if it's italic-only) is the subtitle.
+  // A subtitle may follow as: (a) trailing italic on the same line, (b) an
+  // em-dash + plain text on the same line, or (c) the next italic paragraph.
+  let subtitle = inlineSubtitle(tokens.slice(1));
   if (subtitle === undefined) {
-    if (stream.peekedMeaningful_IsItalicOnlyParagraph()) {
-      const italicPara = stream.consumeMeaningful() as Tokens.Paragraph;
-      subtitle = normalizeText(
-        inlineToPlain((italicPara.tokens[0] as Tokens.Em).tokens),
-      );
-    }
+    const italicPara = stream.consumeItalicParagraph();
+    if (italicPara) subtitle = plainText(italicPara.tokens);
   }
 
   const entry: Education = { title };
@@ -82,6 +57,24 @@ function readOneEducation(stream: TokenStream): Education {
   if (institution) entry.institution = institution;
   return entry;
 }
+
+/** Subtitle carried on the same line as the bold title (forms (a)/(b)). */
+function inlineSubtitle(rest: Tokens.Generic[]): string | undefined {
+  const meaningful = rest.filter(
+    (t) => !(t.type === "text" && /^\s*$/.test((t as Tokens.Text).text)),
+  );
+  const first = meaningful[0];
+  if (!first) return undefined;
+  if (first.type === "em") return plainText((first as Tokens.Em).tokens);
+  if (first.type === "text") {
+    const raw = plainText([first]);
+    const dash = raw.match(/^\s*[—–-]\s*(.+)$/);
+    if (dash) return dash[1].trim();
+    return raw.length > 0 ? raw : undefined;
+  }
+  return undefined;
+}
+
 function splitTitleInstitution(boldText: string): {
   title: string;
   institution?: string;

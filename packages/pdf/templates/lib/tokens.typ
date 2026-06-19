@@ -22,13 +22,13 @@
 
 // ── Typography ────────────────────────────────────────────────────────────────
 
-// Active font family. Pinned to a bundled font for reproducible output
-// across machines — the build passes --font-path export-pdf/fonts plus
-// --ignore-system-fonts, so only TTFs committed under export-pdf/fonts/ are
+// Active font family. Pinned to a bundled font for reproducible output across
+// machines — the renderer passes --font-path <packages/pdf/fonts> plus
+// --ignore-system-fonts, so only TTFs committed under packages/pdf/fonts/ are
 // considered. To swap families: drop the new family under
-// export-pdf/fonts/<Family>/ (any layout — Typst walks recursively) and set
+// packages/pdf/fonts/<Family>/ (any layout — Typst walks recursively) and set
 // this constant to its reported family name (run `typst fonts
-// --font-path export-pdf/fonts --ignore-system-fonts` to list them).
+// --font-path packages/pdf/fonts --ignore-system-fonts` to list them).
 //
 // "Inter 18pt" is Inter's body-text optical-size variant; it covers every
 // size used here (9–15pt).
@@ -76,33 +76,3 @@
 // ── Strokes ───────────────────────────────────────────────────────────────────
 
 #let heading-rule-width = 1.5pt
-
-// ── cv-special ────────────────────────────────────────────────────────────────
-
-#let special-photo-size = 4.5cm  // square headshot in the special header
-
-// ── Shared helper: section heading ───────────────────────────────────────────
-
-/// Renders an uppercase, bold section heading with a 1.5pt accent underline.
-/// `title` is a plain string.
-// `sticky: true` keeps the heading attached to the next block, so a page
-// break can never leave the title orphaned at the bottom of a page.
-#let section-heading(title) = block(
-  width: 100%,
-  below: space-heading-mb,
-  breakable: false,
-  sticky: true,
-)[
-  #text(
-    size: text-section-heading,
-    weight: "bold",
-    tracking: 0.04em,
-    fill: color-text,
-    upper(title),
-  )
-  #v(space-heading-pb, weak: false)
-  #line(
-    length: 100%,
-    stroke: (paint: color-accent, thickness: heading-rule-width),
-  )
-]

@@ -1,5 +1,5 @@
 import type { Token, Tokens } from "marked";
-import { normalizeText } from "./normalize";
+import { normalizeText } from "./normalize.ts";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Inline rendering — strips markdown formatting (bold/italic/links/code/breaks)
@@ -13,6 +13,11 @@ export function inlineToPlain(tokens: Token[] | undefined): string {
     out += renderInline(token);
   }
   return normalizeText(out, true).replace(/\s+/g, " ");
+}
+
+/** Inline tokens → trimmed plain text. The common reader pattern. */
+export function plainText(tokens: Token[] | undefined): string {
+  return normalizeText(inlineToPlain(tokens));
 }
 
 function renderInline(token: Token): string {

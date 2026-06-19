@@ -2,13 +2,13 @@
 
 Berlino, Germania · Disponibile da remoto
 
-alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo
-
-Portfolio · alexmorgan.example.dev
+alex.morgan@example.com · LinkedIn: linkedin.com/in/alex-morgan-demo · Portfolio: alexmorgan.example.dev
 
 ## Ingegnere del Software Senior
 
 _Ingegnere backend che trasforma sistemi aggrovigliati in sistemi noiosi e affidabili._
+
+## About
 
 Progetto e gestisco servizi backend per prodotti ad alto traffico, con una predilezione per contratti chiari, osservabilità e rilasci piccoli e reversibili.
 

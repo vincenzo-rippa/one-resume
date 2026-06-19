@@ -1,133 +1,125 @@
 import type { Tokens } from "marked";
-import { normalizeText } from "../helpers/normalize.ts";
-import { inlineToPlain } from "../helpers/inlineRendering.ts";
-import TokenStream from "../classes/TokenStream.ts";
-import type { Location } from "@one-resume/types";
+import type { Contact, Location } from "@one-resume/domain";
+import { TokenStream } from "../classes/TokenStream.ts";
+import { plainText } from "../helpers/inline.ts";
 
-interface HeaderBlock {
+export interface HeaderBlock {
   location: Location;
-  contacts: Record<string, string>;
-  portfolio: string;
+  contacts: Contact[];
 }
-export default function readHeader(stream: TokenStream): HeaderBlock {
-  // Consume all paragraphs up to but not including the first H2.
+
+/** The name (H1, first line). */
+export function readName(stream: TokenStream): string {
+  return plainText(
+    stream.consumeHeading([1], "an H1 name as the first line").tokens,
+  );
+}
+
+/**
+ * The header block: the paragraphs between the name and the headline H2, in any
+ * order. One line is the location (`Based · Availability`); every other line is
+ * a contact line whose `·`-separated segments are captured verbatim and in
+ * order. A `Label: value` segment keeps its label; a bare segment (e.g. an
+ * email) has an empty label. No service is special-cased — the markdown is the
+ * source of every label.
+ */
+export function readHeader(stream: TokenStream): HeaderBlock {
+  let location: Location | undefined;
+  const contacts: Contact[] = [];
+
+  for (const paragraph of readHeaderParagraphs(stream)) {
+    if (!location && isLocationLine(paragraph)) {
+      location = parseLocation(paragraph);
+    } else {
+      contacts.push(...parseContacts(paragraph));
+    }
+  }
+
+  if (!location) {
+    throw stream.error(
+      "header is missing a location line (`City · Availability`)",
+    );
+  }
+  if (contacts.length === 0) {
+    throw stream.error(
+      "header is missing a contacts line (`email · Label: value`)",
+    );
+  }
+  return { location, contacts };
+}
+
+/** The headline (the first H2 after the header). */
+export function readHeadline(stream: TokenStream): string {
+  return plainText(stream.consumeHeading([2], "a ## headline").tokens);
+}
+
+/** Zero, one, or two italic taglines after the headline (long, then short). */
+export function readTaglines(stream: TokenStream): {
+  tagline: string;
+  taglineShort: string;
+} {
+  const lines: string[] = [];
+  let para: Tokens.Paragraph | undefined;
+  while ((para = stream.consumeItalicParagraph())) lines.push(plainText(para.tokens));
+  return { tagline: lines[0] ?? "", taglineShort: lines[1] ?? "" };
+}
+
+// ─── Header-line capture ──────────────────────────────────────────────────────
+
+const SEGMENT_SEPARATOR = "·";
+// A `Label: value` segment: a label, then a colon FOLLOWED BY WHITESPACE. The
+// trailing space is what separates a label from a URL scheme — `https://…` has
+// no space after its colon, so it is captured as a bare value.
+const LABELLED = /^(.+?):\s+(.+)$/;
+
+/** Collect the paragraphs between the name and the headline H2. */
+function readHeaderParagraphs(stream: TokenStream): string[] {
   const paragraphs: string[] = [];
   while (true) {
     const next = stream.peekMeaningful();
-    if (!next) {
-      throw stream.error("expected ## headline after header block");
-    }
+    if (!next) throw stream.error("expected a ## headline after the header");
     if (next.type === "heading" && (next as Tokens.Heading).depth === 2) break;
     const token = stream.consumeMeaningful();
-    if (token.type === "paragraph") {
-      const text = inlineToPlain((token as Tokens.Paragraph).tokens);
-      paragraphs.push(normalizeText(text));
-    } else {
+    if (token.type !== "paragraph") {
       throw stream.error(
         `unexpected token in header block: ${token.type}`,
         token,
       );
     }
+    paragraphs.push(plainText((token as Tokens.Paragraph).tokens));
   }
-
-  let location: Location | undefined;
-  let contacts: Record<string, string> = {};
-  let portfolio = "";
-
-  for (const p of paragraphs) {
-    if (looksLikeLocationLine(p) && !location) {
-      location = parseLocation(p);
-      continue;
-    }
-    if (looksLikeContactsLine(p)) {
-      const result = parseContactsLine(p);
-      // Merge: already-set keys (from earlier paragraphs) win, preserving
-      // first-seen order. New keys from this paragraph are appended.
-      contacts = { ...result.contacts, ...contacts };
-      if (result.portfolio && !portfolio) portfolio = result.portfolio;
-      continue;
-    }
-    if (looksLikePortfolioLine(p)) {
-      portfolio = extractPortfolioValue(p);
-      continue;
-    }
-    // Otherwise: ignore. (Could be an extra hint paragraph.)
-  }
-
-  if (!location) {
-    throw stream.error(
-      "header is missing location line (expected `City · Availability`)",
-    );
-  }
-  if (Object.keys(contacts).length === 0) {
-    throw stream.error(
-      "header is missing contacts line (expected `email · LinkedIn: url`)",
-    );
-  }
-
-  return { location, contacts, portfolio };
+  return paragraphs;
 }
-function looksLikeLocationLine(text: string): boolean {
-  // Location: contains ` · ` and no `@` (no email) and doesn't start with "Portfolio".
-  if (/@/.test(text)) return false;
-  if (/^Portfolio\b/i.test(text)) return false;
-  return /\s·\s/.test(text);
-}
-function looksLikeContactsLine(text: string): boolean {
-  return /@/.test(text);
-}
-function looksLikePortfolioLine(text: string): boolean {
-  return /^Portfolio[\s·:]/i.test(text);
-}
-function parseLocation(text: string): Location {
-  const idx = text.indexOf("·");
-  const based = text.slice(0, idx).trim();
-  const availability = text.slice(idx + 1).trim();
-  return { based, availability };
-}
-interface ContactsParseResult {
-  contacts: Record<string, string>;
-  portfolio?: string;
-}
-function parseContactsLine(text: string): ContactsParseResult {
-  const contacts: Record<string, string> = {};
-  let portfolio: string | undefined;
 
-  // Email: first email-shaped token. (Display labels are the site's concern.)
-  const emailMatch = text.match(/[^\s·]+@[^\s·]+\.[^\s·]+/);
-  if (emailMatch) {
-    contacts.email = `mailto:${emailMatch[0]}`;
-  }
-
-  // LinkedIn: `LinkedIn: <url>` (URL may or may not include scheme).
-  const linkedinMatch = text.match(/LinkedIn[:\s]+([^\s·]+)/i);
-  if (linkedinMatch) {
-    const raw = linkedinMatch[1].replace(/[.,;]+$/, "");
-    const url = raw.startsWith("http") ? raw : `https://${raw}`;
-    contacts.linkedin = url;
-  }
-
-  // GitHub: `GitHub: <url>` (URL may or may not include scheme).
-  const gitHubMatch = text.match(/GitHub[:\s]+([^\s·]+)/i);
-  if (gitHubMatch) {
-    const raw = gitHubMatch[1].replace(/[.,;]+$/, "");
-    const url = raw.startsWith("http") ? raw : `https://${raw}`;
-    contacts.github = url;
-  }
-
-  // Portfolio inline (only when on the same paragraph as contacts):
-  // matches "Portfolio · value" or "Portfolio: value".
-  const portfolioMatch = text.match(
-    /Portfolio[\s·:]+([^\s·]+(?:\s+[^\s·]+)*)/i,
+/** The location line: has the separator, no email, and no `Label: ` segment. */
+function isLocationLine(text: string): boolean {
+  return (
+    text.includes(SEGMENT_SEPARATOR) &&
+    !text.includes("@") &&
+    !LABELLED.test(text)
   );
-  if (portfolioMatch) {
-    portfolio = portfolioMatch[1].trim();
-  }
-
-  return { contacts, portfolio };
 }
-function extractPortfolioValue(text: string): string {
-  // "Portfolio · value" or "Portfolio: value"
-  const m = text.match(/^Portfolio[\s·:]+(.+)$/i);
-  return m ? m[1].trim() : "";
+
+function parseLocation(text: string): Location {
+  const idx = text.indexOf(SEGMENT_SEPARATOR);
+  return {
+    based: text.slice(0, idx).trim(),
+    availability: text.slice(idx + SEGMENT_SEPARATOR.length).trim(),
+  };
+}
+
+/** Split a contact line into ordered segments, each captured verbatim. */
+function parseContacts(text: string): Contact[] {
+  return text
+    .split(SEGMENT_SEPARATOR)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .map(toContact);
+}
+
+function toContact(segment: string): Contact {
+  const m = segment.match(LABELLED);
+  return m
+    ? { label: m[1].trim(), value: m[2].trim() }
+    : { label: "", value: segment };
 }

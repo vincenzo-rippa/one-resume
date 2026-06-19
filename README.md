@@ -1,80 +1,85 @@
 # one-resume
 
-Deterministic document pipeline for CV / projects / freelance résumés. Turns
-markdown sources into typed data, then into print-ready **PDFs** (Typst) and
-ATS-friendly **DOCX** files, and regenerates the content JSON consumed by the
-[`pro-landing`](../pro-landing) website.
+A small, **language-agnostic** document pipeline: CV / projects markdown → typed
+data → print-ready **PDF** (Typst), ATS-friendly **DOCX**, and the **content
+JSON** a website consumes. One markdown source, three rendered outputs, no
+per-language code.
 
-This repo holds only the tooling. The markdown content lives in the
-[`pro-profile-source`](../pro-profile-source) repo, and the generated public
-assets are written back into the website. All three repos are expected to sit
-side by side under a common parent directory; see **Configuration** to point
-elsewhere.
+The parser reads structure *positionally* — there are no keyword dictionaries or
+anchors — so the same code parses an English, Italian, Spanish, or French CV and
+**captures** the section titles and field labels from the markdown itself.
 
-## Packages
+## Quickstart (zero config)
 
-| Path            | Purpose                                                             |
-| --------------- | ------------------------------------------------------------------ |
-| `core-parser/`  | Markdown → typed `ParsedCv` (deterministic, fail-fast). Pure: `marked` only, no `node:*`, no `yaml`. |
-| `source-nodefs/`| Node I/O layer: `FileSystemSource`, pipeline path config, and the `core-parse` debug CLI. |
-| `export-pdf/`   | Typst templates + Node wrapper → CV / projects / freelance PDFs.   |
-| `export-doc/`   | `docx` renderer → ATS-friendly DOCX exports.                       |
-| `export-json/`  | core-parser → the per-language `content.json` the site consumes.   |
-
-`core-parser` defines `parseCv` / `parseProjects` and a one-method
-`SourceResolver` seam; `source-nodefs` is the filesystem implementation that the
-exporters build on. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the package graph
-and design decisions, and `core-parser/docs/CONTENT_CONTRACT.md` for the markdown
-structural rules. Keywords live in the markdown as a `<!-- keywords: … -->`
-comment; the only YAML sidecar left is the private cv-special one (in
-`export-pdf/src/special/`).
-
-## Prerequisites
-
-- Node.js ≥ 22
-- [Typst CLI](https://typst.app/docs/install) for PDF builds —
-  `winget install Typst.Typst` or `brew install typst`
-
-## Install
+A fresh clone renders the bundled CC0 examples to `./out` with no setup:
 
 ```bash
-npm install   # workspaces: installs all package deps (core-parser / source-nodefs / export-*) + tooling
+npm install                                  # Node ≥ 22; installs the workspaces
+npm run pdf  -- --all                        # examples/ → out/pdf/*.pdf   (needs Typst)
+npm run doc  -- --all                        # examples/ → out/ats/**/*.docx
+npm run sync                                 # examples/ → out/locales/{en,it}/content.json
+npm run parse -- examples/cv/main/en-cv.md   # → ParsedCv JSON on stdout
 ```
+
+PDF builds need the [Typst CLI](https://typst.app/docs/install)
+(`winget install Typst.Typst` / `brew install typst`).
+
+## Layout
+
+An npm-workspaces monorepo. TypeScript runs straight from source via `tsx` — no
+build step. Dependencies point one way; the domain model is the hub.
+
+| Package | Role |
+| --- | --- |
+| [`@one-resume/domain`](packages/domain) | Zero-runtime domain model — the interfaces every other package shares. |
+| [`@one-resume/parser`](packages/parser) | Markdown → `ParsedCv` / `ParsedProjects`. Positional, language-agnostic. |
+| [`@one-resume/pdf`](packages/pdf) | `ParsedCv` → Typst PDF (bundled Inter fonts, pinned Typst). |
+| [`@one-resume/docx`](packages/docx) | `ParsedCv` → ATS-friendly `.docx` bytes. |
+| [`@one-resume/content`](packages/content) | `ParsedCv` → the site `content.json`; the `ContentSource` port. |
+
+| App | Role |
+| --- | --- |
+| [`apps/cli`](apps/cli) | The `one-resume` CLI: `parse` / `pdf` / `docx` / `sync` / `check`. |
+| [`apps/api`](apps/api) | Koa HTTP API serving parsed content from a GitHub source. |
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the design and
+[the content contract](packages/parser/docs/CONTENT_CONTRACT.md) for the markdown
+rules.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run parse -- <md>` | Parse one CV markdown to `ParsedCv` JSON (stdout, or `--out <file>`). |
+| `npm run pdf -- --input <md> [--template cv\|projects] [--out <file>]` | Render one PDF. |
+| `npm run pdf -- --public` | The site PDFs → `SITE_PUBLIC_CV_DIR`. |
+| `npm run pdf -- --all` | Every CV/projects markdown under the content root → `out/pdf`. |
+| `npm run doc -- --input <md>` · `npm run doc -- --all` | ATS DOCX, one or all. |
+| `npm run sync [-- --dry-run]` | Per-language `content.json` → `SITE_LOCALES_DIR`. |
+| `npm run check` | Fail if a committed `content.json` is stale. |
+| `npm test` | Run the package test suites. |
+
+(`pdf:public`, `pdf:all`, `doc:all`, `sync:check` are shortcuts for the forms above.)
 
 ## Configuration
 
-External paths come from environment variables, loaded from an optional `.env`
-at the repo root. Every var is optional and defaults to the side-by-side layout.
-Copy `.env.example` to `.env` to override.
+Demo-first: with nothing set, the CLI reads the bundled `examples/` and writes to
+`./out`. Override via `apps/cli/.env` (copy
+[`apps/cli/.env.example`](apps/cli/.env.example)) — every var is optional:
 
-| Var                  | Default                          | Used by              |
-| -------------------- | -------------------------------- | -------------------- |
-| `CONTENT_DIR`        | `../pro-profile-source`          | all                  |
-| `SITE_PUBLIC_CV_DIR` | `../pro-landing/public/cv`       | `pdf:public`         |
-| `SITE_LOCALES_DIR`   | `../pro-landing/src/lib/locales` | `sync-locales`       |
-| `PRINTED_DIR`        | `./printed`                      | `pdf:all`, `doc`     |
+| Var | Default | Purpose |
+| --- | --- | --- |
+| `CONTENT_DIR` | `examples` | Markdown source root (`cv/`, `projects/`). |
+| `OUTPUT_DIR` | `out` | Base for all generated output. |
+| `SITE_PUBLIC_CV_DIR` | `<out>/public` | Where `pdf --public` writes. |
+| `SITE_LOCALES_DIR` | `<out>/locales` | Where `sync` writes `content.json`. |
+| `TYPST_BIN` | `typst` | The Typst binary (resolved on PATH). |
 
-## Scripts
+The HTTP API ([`apps/api`](apps/api)) reads from a GitHub repo instead — see its
+README and [`.env.example`](apps/api/.env.example).
 
-| Command                       | What it does                                                  |
-| ----------------------------- | ------------------------------------------------------------ |
-| `npm test`                    | Run the core-parser test suite                               |
-| `npm run sync-locales`        | Regenerate the site's `locales/{en,it}/content.json`         |
-| `npm run pdf:public`          | Build the 4 public PDFs into `SITE_PUBLIC_CV_DIR`            |
-| `npm run pdf -- --input <md>` | Build one PDF (`--input`/`--out` resolve against cwd)        |
-| `npm run pdf:all`             | Build every parser-known PDF into `PRINTED_DIR/pdf`          |
-| `npm run pdf:special`         | Build the private cv-special PDF                             |
-| `npm run doc -- --input <md>` | Build one ATS DOCX                                           |
-| `npm run doc:all`             | Build every parser-known DOCX into `PRINTED_DIR/ats`         |
-| `npm run parse -- <md>`       | Parse one markdown file to JSON on stdout                    |
+## License
 
-## Content workflow
-
-```bash
-# Edit a markdown file in ../pro-profile-source, then:
-npm run sync-locales           # regenerate the site's content JSON
-npm run pdf:public             # regenerate the 4 public PDFs the site ships
-```
-
-Commit the markdown change in `pro-profile-source` and the regenerated
-PDFs / content JSON in `pro-landing`.
+[AGPL-3.0-only](LICENSE). You may use, modify, and distribute this software —
+including offering it over a network — provided derivative works stay under the
+same license and their source remains available.

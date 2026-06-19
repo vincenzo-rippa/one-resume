@@ -1,22 +1,24 @@
-// ─── CV — main layout ────────────────────────────────────────────────────────
+// ─── CV layout ───────────────────────────────────────────────────────────────
 //
 // Compile with:
-//   typst compile --input data=.cache/<uuid>.json main.typ output.pdf
+//   typst compile --input data=.cache/<uuid>.json cv.typ output.pdf
 //
-// The build wrapper (export-pdf/scripts/build.ts) handles data injection automatically.
+// One adaptive template for every CV: the Selected Projects section renders only
+// when `projects` is non-empty, so a CV with an embedded projects section and a
+// CV without one share a single template — no variants.
 //
-// Data shape (JSON):
-//   { profile, experiences, education, footer, labels }
-//   where `footer` is the GDPR / legal text (parsed from the CV markdown)
-//   and labels = { about, experience, education, selectedTechnologies,
-//                  portfolio, ongoing, languages, otherSkills }
-//   (no footer in labels — it's content, supplied by the parser).
+// Data shape (JSON) — the parsed CV (@one-resume/domain ParsedCv):
+//   { profile, labels, experiences, education, projects, footer, keywords }
+//   profile.contacts is an ordered list of { label, value } captured from the
+//   header; labels = { about, experience, education, technologies, projects }
+//   (section titles captured from the markdown headings, not a dictionary).
 
 #import "lib/tokens.typ": *
 #import "lib/header.typ": cv-header
 #import "lib/about.typ": cv-about
 #import "lib/experience.typ": cv-experience
 #import "lib/education.typ": cv-education
+#import "lib/project.typ": cv-projects
 #import "lib/footer.typ": cv-footer
 
 // ── Data ─────────────────────────────────────────────────────────────────────
@@ -55,9 +57,13 @@
 
 // ── Layout ───────────────────────────────────────────────────────────────────
 
-#cv-header(cv, labels)
+#cv-header(cv)
 #cv-about(cv, labels)
 #cv-experience(d.experiences, labels)
+// Selected Projects — rendered only when the CV embeds a projects section.
+#if d.projects.len() > 0 {
+  cv-projects(d.projects, labels.projects)
+}
 #if d.education.len() > 0 {
   cv-education(d.education, labels)
 }

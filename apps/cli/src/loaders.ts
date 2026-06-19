@@ -1,18 +1,22 @@
-// Read + parse glue: read a markdown file and hand the string to the pure
-// parser. Folds in the former @one-resume/fs loaders.
+// Read + parse glue: read markdown through a ContentSource and hand the string
+// to the pure parser.
 
-import { parseCv, parseProjects } from "@one-resume/parser";
-import type { ParsedCv, ParsedProjects } from "@one-resume/types";
-import { readTextRequired } from "./io.ts";
+import { parse } from "@one-resume/parser";
+import type { ParsedCv, ParsedProjects } from "@one-resume/domain";
+import type { ContentSource } from "@one-resume/content";
 
 /** Read + parse a CV markdown file. */
-export async function loadParsedCv(path: string): Promise<ParsedCv> {
-  return parseCv(await readTextRequired(path), { sourceName: path });
+export async function loadParsedCv(
+  source: ContentSource,
+  path: string,
+): Promise<ParsedCv> {
+  return parse(await source.read(path), "cv");
 }
 
 /** Read + parse a standalone projects markdown file. */
 export async function loadParsedProjects(
+  source: ContentSource,
   path: string,
 ): Promise<ParsedProjects> {
-  return parseProjects(await readTextRequired(path), { sourceName: path });
+  return parse(await source.read(path), "projects");
 }

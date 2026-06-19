@@ -1,43 +1,38 @@
-// The markdown → site content.json transform. Pure string→string: parse the CV
-// (and optional standalone projects) markdown and emit the canonical content
-// JSON the pro-landing site consumes. The CLI owns env/path resolution and file
-// I/O; this module owns the format.
+// The markdown → site content.json transform. Pure data→data: parse the CV
+// (and optional standalone projects) markdown and return the canonical content
+// the pro-landing site consumes — the parsed CV itself, with its captured
+// labels. The CLI / API own env/path resolution and file I/O; this module owns
+// the format.
 
-import type {
-  Profile,
-  Experience,
-  Education,
-  Project,
-} from "@one-resume/types";
-import { parseCv, parseProjects } from "@one-resume/parser";
+import type { ParsedCv } from "@one-resume/domain";
+import { parse } from "@one-resume/parser";
 
 export interface ContentInput {
   cvMarkdown: string;
+  /**
+   * Standalone projects markdown. When given, its projects (and its captured
+   * section heading) replace the CV's embedded projects — the standard site
+   * layout, where projects live in their own file.
+   */
   projectsMarkdown?: string;
 }
 
-export interface ContentOutput {
-  profile: Profile;
-  experiences: Experience[];
-  education: Education[];
-  projects: Project[];
-  footer: string;
-  keywords: string[];
-}
+/** The content the site consumes: a parsed CV, with its captured labels. */
+export type ContentOutput = ParsedCv;
 
 /**
- * The untransformed parser output the site consumes:
- * `{ profile, experiences, education, projects, footer, keywords }`. When
- * `projectsMarkdown` is given, its parsed projects replace the CV's embedded
- * ones (the standard site layout, where projects live in their own file);
- * otherwise the CV's own `projects` array is used.
+ * Build the content for one language. The CV is parsed as-is; when
+ * `projectsMarkdown` is given, the standalone projects and their captured label
+ * replace the CV's embedded ones.
  */
 export function buildContent(input: ContentInput): ContentOutput {
-  const cv = parseCv(input.cvMarkdown, { sourceName: "cv" });
-  const { profile, experiences, education, footer, keywords } = cv;
-  const projects =
-    input.projectsMarkdown !== undefined
-      ? parseProjects(input.projectsMarkdown, { sourceName: "projects" })
-      : cv.projects;
-  return { profile, experiences, education, projects, footer, keywords };
+  const cv = parse(input.cvMarkdown, "cv");
+  if (input.projectsMarkdown === undefined) return cv;
+
+  const standalone = parse(input.projectsMarkdown, "projects");
+  return {
+    ...cv,
+    labels: { ...cv.labels, projects: standalone.label },
+    projects: standalone.projects,
+  };
 }
