@@ -7,8 +7,9 @@
 #   GITHUB_PAT, GITHUB_OWNER, GITHUB_ROOT, [GITHUB_REF], API_KEY, [PORT]
 
 # ── typst: pinned static binary ───────────────────────────────────────────────
-# Pinned to 0.14.2 to match the local toolchain, so the /v1/pdf endpoint's output
-# in the container is byte-identical to the CLI.
+# Pinned to 0.14.2 to match the local toolchain, so the /v1/pdf endpoint renders
+# content-identical PDFs to the CLI (typst embeds a build timestamp, so they are
+# not byte-for-byte identical).
 FROM debian:bookworm-slim AS typst
 ARG TYPST_VERSION=0.14.2
 ARG TYPST_TARGET=x86_64-unknown-linux-musl

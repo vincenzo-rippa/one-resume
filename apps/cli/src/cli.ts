@@ -2,7 +2,7 @@
 // own flags. Config is loaded per command that needs it (parse reads nothing
 // from config).
 
-import { PipelineConfig } from "./config.ts";
+import { PipelineConfig } from "./lib/config.ts";
 import { runParse } from "./commands/parse.ts";
 import { runPdf } from "./commands/pdf.ts";
 import { runDocx } from "./commands/docx.ts";

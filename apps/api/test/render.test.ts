@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { postPdfRender } from "../src/controllers/render.ts";
-import { IoError } from "../src/errors.ts";
+import { AppError } from "../src/lib/error.ts";
 
 // The /v1/pdf controller's guard branches — the ones that don't need typst:
 // unavailable renderer → 503, parse failure → 422, bad body → ZodError (→ 400).
@@ -43,23 +43,30 @@ describe("postPdfRender guards", () => {
     const ctx = makeCtx({ type: "cv", input: "cv.md" }, null);
     await assert.rejects(
       postPdfRender(ctx as never),
-      (e) => e instanceof IoError && e.status === 503,
+      (e) => e instanceof AppError && e.status === 503,
     );
   });
 
   it("maps a parse failure to a 422 (renderer present)", async () => {
-    const ctx = makeCtx({ type: "cv", input: "bad.md" }, {}, {
-      "bad.md": "## not a CV\n",
-    });
+    const ctx = makeCtx(
+      { type: "cv", input: "bad.md" },
+      {},
+      {
+        "bad.md": "## not a CV\n",
+      },
+    );
     await assert.rejects(
       postPdfRender(ctx as never),
-      (e) => e instanceof IoError && e.status === 422,
+      (e) => e instanceof AppError && e.status === 422,
     );
   });
 
   it("rejects an invalid body before touching the renderer", async () => {
     const ctx = makeCtx({ type: "bogus", input: "cv.md" }, null);
-    // ZodError (the ErrorMiddleware turns it into a 400) — not an IoError 503.
-    await assert.rejects(postPdfRender(ctx as never), (e) => !(e instanceof IoError));
+    // ZodError (the ErrorMiddleware turns it into a 400) — not an AppError 503.
+    await assert.rejects(
+      postPdfRender(ctx as never),
+      (e) => !(e instanceof AppError),
+    );
   });
 });

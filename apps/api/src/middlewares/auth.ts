@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { Context, Next, Middleware } from "koa";
 
 function isSecure(serverKey: string): boolean {
@@ -6,14 +6,12 @@ function isSecure(serverKey: string): boolean {
 }
 
 function safeEqual(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+  const digestA = createHash("sha256").update(a).digest();
+  const digestB = createHash("sha256").update(b).digest();
+  return timingSafeEqual(digestA, digestB);
 }
 
-export function ApiKeyAuthMiddleware(serverKey: string | undefined): Middleware {
-  // Boot-time config check: fail fast with a clear message rather than a
-  // request-shaped error that would crash the process at startup.
+export function AuthMiddleware(serverKey: string | undefined): Middleware {
   if (!serverKey || !isSecure(serverKey)) {
     console.error(
       "FATAL: API_KEY must be set and longer than 16 characters (set it in apps/api/.env).",

@@ -8,7 +8,7 @@ import { writeFileSync, mkdirSync, writeSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { parseFrom, ParseError } from "@one-resume/parser";
-import { FsDocumentSource } from "../source.ts";
+import { FsDocumentSource } from "../lib/source.ts";
 
 /**
  * Synchronous write to stderr (fd 2). When launched via npm/tsx the stderr

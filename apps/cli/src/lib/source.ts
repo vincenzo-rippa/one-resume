@@ -1,6 +1,6 @@
 // Filesystem DocumentSource: reads markdown from a root directory. A relative
 // path resolves against the root; an absolute path is read as-is (so `--input`
-// can point anywhere). The api's GitHubRepository is the same port over a repo.
+// can point anywhere). The api's GitHubDocumentSource is the same port over a repo.
 
 import { resolve } from "node:path";
 import type { DocumentSource } from "@one-resume/domain";

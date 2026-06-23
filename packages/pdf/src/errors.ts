@@ -1,24 +1,14 @@
 /**
- * Failures from the PDF renderer:
- *  - typst not reachable (the `PdfRenderer` constructor preflight) — `cause` carries
- *    the spawn error / non-zero exit;
- *  - a non-zero `typst compile` exit — `cause` carries the exit code;
- *  - special-sidecar validation — `field` names the offending YAML key,
- *    `sourceName` the sidecar.
+ * A PDF rendering failure: typst was unreachable (the `PdfRenderer` preflight) or
+ * a `typst compile` invocation failed (non-zero exit, spawn error, or timeout).
+ * `cause` carries the underlying spawn error or exit code.
  */
 export class PdfError extends Error {
-  sourceName?: string;
-  field?: string;
   override cause?: unknown;
 
-  constructor(
-    message: string,
-    opts: { sourceName?: string; field?: string; cause?: unknown } = {},
-  ) {
+  constructor(message: string, opts: { cause?: unknown } = {}) {
     super(message);
     this.name = "PdfError";
-    this.sourceName = opts.sourceName;
-    this.field = opts.field;
     this.cause = opts.cause;
   }
 }

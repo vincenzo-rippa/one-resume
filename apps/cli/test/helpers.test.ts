@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { resolve } from "node:path";
-import { resolveKind, defaultDocxOut } from "../src/targets.ts";
+import { resolveKind, defaultDocxOut } from "../src/lib/helpers.ts";
 
 describe("resolveKind", () => {
   it("infers projects from a filename containing 'projects'", () => {

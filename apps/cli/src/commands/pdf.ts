@@ -6,12 +6,12 @@
 import { basename, extname, resolve } from "node:path";
 import { parseFrom } from "@one-resume/parser";
 import { PdfRenderer } from "@one-resume/pdf";
-import type { PipelineConfig } from "../config.ts";
-import { FsDocumentSource } from "../source.ts";
+import type { PipelineConfig } from "../lib/config.ts";
+import { FsDocumentSource } from "../lib/source.ts";
 
-import { listMarkdown } from "../io.ts";
-import { resolveKind } from "../targets.ts";
-import { getFlag, has } from "../args.ts";
+import { listMarkdown } from "../lib/io.ts";
+import { resolveKind } from "../lib/helpers.ts";
+import { getFlag, has } from "../lib/args.ts";
 
 async function buildOne(
   typst: PdfRenderer,

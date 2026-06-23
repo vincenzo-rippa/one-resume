@@ -29,7 +29,7 @@ and configuration see [`README.md`](README.md).
               └─────────────┬─────────────┘
                             ▼  delivery
               apps/cli                  apps/api
-        (FsDocumentSource)    (GitHubRepository; also content JSON)
+     (FsDocumentSource)      (GitHubDocumentSource; also content JSON)
 ```
 
 Dependencies are acyclic and point inward: every package depends on
@@ -88,7 +88,7 @@ interface DocumentSource {
 ```
 
 The CLI implements it with `FsDocumentSource` (a filesystem root); the API
-implements it with `GitHubRepository` (octokit over a repo). Reads route through
+implements it with `GitHubDocumentSource` (octokit over a repo). Reads route through
 `parseFrom` (read-then-parse). The site's merged content JSON — a CV with a
 standalone projects doc folded in — is built by the API's `/v1/content` controller
 (`GET /v1/content?cv=…&projects=…`); the CLI's `parse` handles a single CV.
@@ -101,7 +101,8 @@ standalone projects doc folded in — is built by the API's `/v1/content` contro
   `{ parsed, out }`; the parsed _shape_ selects the template — a CV uses the one
   adaptive `cv` template (it renders an embedded projects section only when
   present), a standalone projects document uses `projects`. There is no separate
-  "freelance" variant.
+  "freelance" code path — the freelance example is just a CV that embeds a
+  projects section.
 - **DOCX** (`@one-resume/docx`): `renderDocx(docs)` returns `.docx` bytes per
   document — no filesystem I/O, so the caller writes them or streams them from an
   HTTP response. The GDPR footer is intentionally omitted (ATS noise).
@@ -118,8 +119,9 @@ content test suites.
   workspace symlinks resolve them.
 - **`import type` discipline.** `@one-resume/domain` has zero runtime exports;
   every consumer imports its interfaces with `import type`.
-- **Apps stay test-free.** Logic lives in the packages (tested with inline,
-  sibling-free fixtures); the CLI and API are thin wiring.
+- **Tests live with the logic.** The packages carry the substantive suites
+  (inline, sibling-free fixtures); the apps add focused unit tests for their own
+  pure logic and request guards (path validation, auth, staleness checks).
 
 ## Document metadata
 

@@ -18,15 +18,19 @@ export interface PdfJob {
 
 export class PdfRenderer {
   private readonly bin: string;
+  private readonly timeoutMs: number;
 
   /**
    * `bin` is the typst binary the app resolved (TYPST_BIN). Defaults to
    * `typst.exe` on Windows / `typst` elsewhere so the binary is found without a
-   * shell (avoids Node DEP0190). Throws `PdfError` if typst is unreachable.
+   * shell (avoids Node DEP0190). `timeoutMs` caps a single compile so a hung
+   * typst is killed rather than pinning the caller. Throws `PdfError` if typst
+   * is unreachable.
    */
-  constructor(options: { bin?: string } = {}) {
+  constructor(options: { bin?: string; timeoutMs?: number } = {}) {
     this.bin =
       options.bin ?? (process.platform === "win32" ? "typst.exe" : "typst");
+    this.timeoutMs = options.timeoutMs ?? 25_000;
     preflight(this.bin);
   }
 
@@ -42,6 +46,7 @@ export class PdfRenderer {
         payload: parsed,
         template: "profile" in parsed ? "cv" : "projects",
         pdfOut: out,
+        timeoutMs: this.timeoutMs,
       });
     }
   }

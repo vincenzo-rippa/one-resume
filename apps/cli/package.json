@@ -17,8 +17,7 @@
     "@one-resume/domain": "*",
     "@one-resume/parser": "*",
     "@one-resume/pdf": "*",
-    "@one-resume/docx": "*",
-    "yaml": "^2.6.1"
+    "@one-resume/docx": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

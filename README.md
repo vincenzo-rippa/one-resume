@@ -7,7 +7,9 @@ per-language code.
 
 The parser reads structure _positionally_ — there are no keyword dictionaries or
 anchors — so the same code parses an English, Italian, Spanish, or French CV and
-**captures** the section titles and field labels from the markdown itself.
+**captures** the section titles and field labels from the markdown itself. (The
+bundled examples are English and Italian; the parser's tests cover Spanish and
+French too.)
 
 ## Quickstart (zero config)
 

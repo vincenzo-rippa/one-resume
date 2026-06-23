@@ -1,14 +1,8 @@
 // Plain filesystem I/O for the app — folds in the former @one-resume/fs
-// FileSystemSource (read/write/copy/list) as direct fs calls. Paths are resolved
+// FileSystemSource (read/write/list) as direct fs calls. Paths are resolved
 // by the caller; these just touch disk.
 
-import {
-  readFile,
-  writeFile,
-  mkdir,
-  copyFile as fsCopyFile,
-  readdir,
-} from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { dirname, join, relative } from "node:path";
 
@@ -35,11 +29,6 @@ export async function readTextRequired(path: string): Promise<string> {
   return text;
 }
 
-/** Read raw bytes (e.g. the special photo). */
-export async function readBytes(path: string): Promise<Uint8Array> {
-  return readFile(path);
-}
-
 /** Write text or bytes, creating parent directories as needed. */
 export async function write(
   path: string,
@@ -47,12 +36,6 @@ export async function write(
 ): Promise<void> {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, data);
-}
-
-/** Copy a binary file, creating parent dirs. */
-export async function copyFile(src: string, dest: string): Promise<void> {
-  await mkdir(dirname(dest), { recursive: true });
-  await fsCopyFile(src, dest);
 }
 
 /** Recursively list `*.md` files under `root`, as paths relative to `root`. */

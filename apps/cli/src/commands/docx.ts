@@ -6,12 +6,12 @@
 
 import { basename, resolve } from "node:path";
 import { renderDocx } from "@one-resume/docx";
-import type { PipelineConfig } from "../config.ts";
-import { FsDocumentSource } from "../source.ts";
+import type { PipelineConfig } from "../lib/config.ts";
+import { FsDocumentSource } from "../lib/source.ts";
 import { parseFrom } from "@one-resume/parser";
-import { listMarkdown, write } from "../io.ts";
-import { defaultDocxOut, resolveKind } from "../targets.ts";
-import { getFlag, has } from "../args.ts";
+import { listMarkdown, write } from "../lib/io.ts";
+import { defaultDocxOut, resolveKind } from "../lib/helpers.ts";
+import { getFlag, has } from "../lib/args.ts";
 
 async function buildOne(
   source: FsDocumentSource,

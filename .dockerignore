@@ -9,3 +9,7 @@ printed
 **/.env
 **/.env.*
 *.tsbuildinfo
+# private apps vendored under apps/ — keep them out of the build context
+apps/*
+!apps/cli
+!apps/api

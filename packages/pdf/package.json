@@ -13,8 +13,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@one-resume/domain": "*",
-    "yaml": "^2.6.1"
+    "@one-resume/domain": "*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

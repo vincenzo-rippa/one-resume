@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listMarkdown } from "../src/io.ts";
+import { listMarkdown } from "../src/lib/io.ts";
 
 // The `--all` enumeration: recursively collect *.md under a root as sorted,
 // root-relative paths. Exercised against a temp tree.

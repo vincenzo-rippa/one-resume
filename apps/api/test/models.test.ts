@@ -19,6 +19,8 @@ describe("ContentQuery", () => {
       "../secret.md",
       "/etc/passwd.md",
       "C:\\Windows\\x.md",
+      "\\\\server\\share\\x.md",
+      "\\x.md",
       "cv/en-cv.txt",
       "",
       undefined,

@@ -37,8 +37,9 @@ export function preflight(bin: string): void {
  * Compile `template`.typ with `payload` injected as `data`, writing `pdfOut`.
  *
  * The payload is written to a temp JSON in the template's .cache dir (Typst
- * reads it via `--input data=.cache/<uuid>.json`). `extraTempFiles` (e.g. a
- * written photo) are removed alongside the JSON after compilation.
+ * reads it via `--input data=.cache/<uuid>.json`) and removed after compilation.
+ * `timeoutMs` caps the typst process — it is killed and the compile rejects if
+ * it overruns.
  *
  * --font-path + --ignore-system-fonts pin rendering to the repo-bundled Inter
  * family, so the PDF is identical across machines regardless of installed fonts.
@@ -52,14 +53,13 @@ export async function compile(
     payload: unknown;
     template: string;
     pdfOut: string;
-    extraTempFiles?: string[];
+    timeoutMs?: number;
   },
 ): Promise<void> {
-  const { payload, template, pdfOut, extraTempFiles = [] } = opts;
+  const { payload, template, pdfOut, timeoutMs } = opts;
 
   await mkdir(CACHE_DIR, { recursive: true });
   const cacheFile = resolve(CACHE_DIR, randomUUID() + ".json");
-  const tempFiles = [cacheFile, ...extraTempFiles];
   const dataArg = ".cache/" + basename(cacheFile);
   await writeFile(cacheFile, JSON.stringify(payload, null, 2), "utf8");
 
@@ -80,12 +80,11 @@ export async function compile(
         pdfOut,
       ],
       template,
+      timeoutMs,
     );
   } finally {
-    // Clean up temp files (JSON + any written photo) regardless of outcome.
-    await Promise.all(
-      tempFiles.map((f) => rm(f, { force: true }).catch(() => {})),
-    );
+    // Clean up the temp JSON regardless of outcome.
+    await rm(cacheFile, { force: true }).catch(() => {});
   }
 }
 
@@ -94,20 +93,39 @@ export async function compile(
  * `spawnSync`) so the Node event loop stays free while Typst runs — essential
  * when the renderer is driven by a server handling concurrent requests. A spawn
  * failure (e.g. a missing binary) or a non-zero exit rejects with `PdfError`.
+ *
+ * When `timeoutMs` is given, a hung typst is killed and the promise rejects, so
+ * a single bad input can never pin a request (and its temp files) indefinitely.
  */
 function runTypst(
   bin: string,
   args: string[],
   template: string,
+  timeoutMs?: number,
 ): Promise<void> {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(bin, args, { stdio: "inherit" });
-    child.once("error", (err) =>
+
+    const timer = timeoutMs
+      ? setTimeout(() => {
+          child.kill();
+          reject(
+            new PdfError(`typst timed out after ${timeoutMs}ms for ${template}`),
+          );
+        }, timeoutMs)
+      : undefined;
+    const clearTimer = () => {
+      if (timer) clearTimeout(timer);
+    };
+
+    child.once("error", (err) => {
+      clearTimer();
       reject(
         new PdfError(`typst invocation failed for ${template}`, { cause: err }),
-      ),
-    );
+      );
+    });
     child.once("close", (code) => {
+      clearTimer();
       if (code === 0) {
         resolvePromise();
       } else {

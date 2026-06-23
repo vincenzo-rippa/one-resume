@@ -1,6 +1,6 @@
-// String normalization matching what the AI-driven locale-sync workflow
-// historically produced. Applied to every string the parser emits so the
-// output is byte-equivalent to the current hand-maintained locale modules.
+// Normalize the strings the parser emits: curly quotes -> ASCII, non-breaking
+// spaces -> regular spaces, and collapsed runs of horizontal whitespace, so
+// parsed output is stable regardless of how the markdown was typed.
 
 const REPLACEMENTS: Array<[RegExp, string]> = [
   // Curly single quotes → ASCII apostrophe
@@ -13,9 +13,8 @@ const REPLACEMENTS: Array<[RegExp, string]> = [
   [/[ \t]+/g, " "],
 ];
 
-// inline is used when joining multi-line
-// paragraph fragments where leading/trailing whitespace matters during the
-// join step.
+// `inline` keeps leading/trailing whitespace (used when joining multi-line
+// paragraph fragments); otherwise the result is trimmed.
 export function normalizeText(input: string, inline: boolean = false): string {
   let out = input;
   for (const [pattern, replacement] of REPLACEMENTS) {

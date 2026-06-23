@@ -14,8 +14,11 @@ node_modules/
 .env
 .env.*.local
 
-# apps/special is its own private repo, vendored locally — never part of this one
-apps/special/
+# private apps (e.g. a personal photo-CV variant) are vendored locally under
+# apps/ but are never part of this repo — only cli and api belong here
+apps/*
+!apps/cli/
+!apps/api/
 
 # misc
 .DS_Store
