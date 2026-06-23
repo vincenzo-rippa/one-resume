@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "license": "AGPL-3.0-only",
+  "author": "Vincenzo Rippa",
   "type": "module",
   "description": "Document pipeline for CV / projects résumés (a CV may embed a projects section): markdown → typed data via @one-resume/parser → Typst PDFs (@one-resume/pdf) + ATS DOCX (@one-resume/docx); the api serves the merged site content JSON. External paths are env-configurable — see .env.example.",
   "engines": {
@@ -17,6 +18,7 @@
     "one-resume": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts",
     "parse": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts parse",
     "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p packages/parser/tsconfig.json --noEmit && tsc -p packages/pdf/tsconfig.json --noEmit && tsc -p packages/docx/tsconfig.json --noEmit && tsc -p apps/cli/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit",
     "pdf": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf",
     "pdf:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --all",
     "doc": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts docx",
