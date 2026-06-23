@@ -109,3 +109,8 @@ export interface ParsedProjects {
   label: string;
   projects: Project[];
 }
+
+/** A root the pipeline reads document from a path. */
+export interface DocumentSource {
+  read(path: string): Promise<string>;
+}

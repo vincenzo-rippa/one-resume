@@ -25,7 +25,6 @@ npm install --silent
 echo "▸ Demo exports (no .env ⇒ examples/ + ./out)"
 npm run --silent pdf:all
 npm run --silent doc:all
-npm run --silent sync
 
 echo "▸ Asserting artifacts under ./out"
 EXPECTED=(
@@ -37,8 +36,6 @@ EXPECTED=(
   out/ats/cv/main/en-cv-ats.docx
   out/ats/projects/en-projects-ats.docx
   out/ats/cv/derived/en-cv-freelance-ats.docx
-  out/locales/en/content.json
-  out/locales/it/content.json
 )
 fail=0
 for f in "${EXPECTED[@]}"; do

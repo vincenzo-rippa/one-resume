@@ -8,12 +8,20 @@
     "node": ">=22.0.0"
   },
   "main": "src/app.ts",
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  },
   "dependencies": {
+    "@koa/bodyparser": "^6.1.0",
     "@koa/router": "^15.6.0",
-    "@one-resume/content": "*",
+    "@one-resume/docx": "*",
+    "@one-resume/domain": "*",
+    "@one-resume/parser": "*",
+    "@one-resume/pdf": "*",
     "koa": "^3.2.1",
     "koa-logger": "^4.0.0",
-    "octokit": "^5.0.5"
+    "octokit": "^5.0.5",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/koa": "^3.0.3",

@@ -7,9 +7,8 @@
 #   GITHUB_PAT, GITHUB_OWNER, GITHUB_ROOT, [GITHUB_REF], API_KEY, [PORT]
 
 # ── typst: pinned static binary ───────────────────────────────────────────────
-# Pinned to 0.14.2 to match the local toolchain, so any future PDF rendering in
-# the container is byte-identical to the CLI. (The current API serves JSON only;
-# typst is baked in ahead of rendering endpoints being added.)
+# Pinned to 0.14.2 to match the local toolchain, so the /v1/pdf endpoint's output
+# in the container is byte-identical to the CLI.
 FROM debian:bookworm-slim AS typst
 ARG TYPST_VERSION=0.14.2
 ARG TYPST_TARGET=x86_64-unknown-linux-musl
@@ -25,7 +24,9 @@ RUN tar -xJf /tmp/typst.tar.xz -C /tmp \
 FROM node:22-slim AS runtime
 WORKDIR /app
 
-# Pinned typst, baked in. A TypstPdf({ bin: TYPST_BIN }) would construct at boot.
+# Pinned typst, baked in. The app builds a PdfRenderer({ bin: TYPST_BIN }) once at
+# boot; if typst were unreachable it logs and leaves the renderer null (the app
+# still starts; /v1/pdf → 503).
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 ENV TYPST_BIN=/usr/local/bin/typst
 

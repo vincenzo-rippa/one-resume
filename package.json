@@ -4,7 +4,7 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
-  "description": "Document pipeline for CV / projects résumés (a CV may embed a projects section): markdown → typed data via @one-resume/parser → Typst PDFs (@one-resume/pdf) + ATS DOCX (@one-resume/docx) + site content JSON (@one-resume/content). External paths are env-configurable — see .env.example.",
+  "description": "Document pipeline for CV / projects résumés (a CV may embed a projects section): markdown → typed data via @one-resume/parser → Typst PDFs (@one-resume/pdf) + ATS DOCX (@one-resume/docx); the api serves the merged site content JSON. External paths are env-configurable — see .env.example.",
   "engines": {
     "node": ">=22.0.0"
   },
@@ -18,12 +18,9 @@
     "parse": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts parse",
     "test": "npm run test --workspaces --if-present",
     "pdf": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf",
-    "pdf:public": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --public",
     "pdf:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --all",
     "doc": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts docx",
     "doc:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts docx --all",
-    "sync": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts sync",
-    "sync:check": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts sync --check",
     "api": "tsx --env-file=apps/api/.env apps/api/src/app.ts",
     "api:dev": "tsx watch --env-file=apps/api/.env apps/api/src/app.ts"
   },

@@ -1,6 +1,6 @@
 /**
  * Failures from the PDF renderer:
- *  - typst not reachable (the `TypstPdf` constructor preflight) — `cause` carries
+ *  - typst not reachable (the `PdfRenderer` constructor preflight) — `cause` carries
  *    the spawn error / non-zero exit;
  *  - a non-zero `typst compile` exit — `cause` carries the exit code;
  *  - special-sidecar validation — `field` names the offending YAML key,

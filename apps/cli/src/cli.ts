@@ -6,18 +6,15 @@ import { PipelineConfig } from "./config.ts";
 import { runParse } from "./commands/parse.ts";
 import { runPdf } from "./commands/pdf.ts";
 import { runDocx } from "./commands/docx.ts";
-import { runSync, runCheck } from "./commands/sync.ts";
 
 const USAGE = `one-resume <command> [options]
 
 Commands:
-  parse <md> [--out <json>]                      parse a CV markdown → ParsedCv JSON
+  parse <md> [--out <json>] [--check <json>]     parse a CV markdown → ParsedCv JSON
   pdf   --input <md> [--template cv|projects] [--out f]
-  pdf   --public | --all
+  pdf   --all
   docx  --input <md> [--template cv|projects] [--out f]
   docx  --all
-  sync  [--dry-run]                              write per-language content.json
-  check                                          fail if a content.json is stale
 `;
 
 export async function main(argv: string[]): Promise<void> {
@@ -32,12 +29,6 @@ export async function main(argv: string[]): Promise<void> {
       return;
     case "docx":
       await runDocx(config, rest);
-      return;
-    case "sync":
-      await runSync(config, rest);
-      return;
-    case "check":
-      await runCheck(config);
       return;
     case undefined:
     case "-h":

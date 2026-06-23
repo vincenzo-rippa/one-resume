@@ -12,6 +12,10 @@ parse(markdown, "projects");  // → ParsedProjects
 
 Unsupported `type`s are a compile error (overloads), not a runtime branch.
 
+`parseFrom(source, path, type)` is the source-driven sibling: it reads markdown
+from a [`DocumentSource`](../domain) and parses it in one step (used by the CLI
+and the API).
+
 ## Positional & language-agnostic
 
 The parser reads structure by position and token depth — there are **no anchors

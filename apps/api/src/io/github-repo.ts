@@ -1,9 +1,9 @@
 import { Octokit, RequestError } from "octokit";
-import type { ContentSource } from "@one-resume/content";
+import type { DocumentSource } from "@one-resume/domain";
 import { GitHubConfig } from "./github-config.ts";
 import { IoError } from "../errors.ts";
 
-export class GitHubRepository implements ContentSource {
+export class GitHubRepository implements DocumentSource {
   private readonly octokit: Octokit;
 
   constructor(private readonly githubConfig: GitHubConfig) {

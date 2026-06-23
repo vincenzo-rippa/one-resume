@@ -80,20 +80,31 @@ function parseCv(markdown: string): ParsedCv {
 function parseProjects(markdown: string): ParsedProjects {
   const stream = streamOf(markdown);
   const label = plainText(
-    stream.consumeHeading([2], "an H2 projects section as the first line").tokens,
+    stream.consumeHeading([2], "an H2 projects section as the first line")
+      .tokens,
   );
   const projects = readProjectsBlock(stream, 3);
   if (projects.length === 0) throw stream.error("no project entries found");
   return { label, projects };
 }
 
-// One command. Strongly typed: the return type follows `type`, and any value
-// outside the union is a compile error (no runtime unsupported-type branch).
+export type ParseType = "cv" | "projects";
+
+// One command. Strongly typed via overloads: the return type follows the literal
+// `type`, and any value outside the union is a compile error (no runtime
+// unsupported-type branch). `parseFrom` is the source-driven sibling — it takes a
+// dynamic `ParseType`, so it returns the union and its callers narrow.
 export function parse(markdown: string, type: "cv"): ParsedCv;
 export function parse(markdown: string, type: "projects"): ParsedProjects;
+// Dynamic-`type` callers (e.g. `parseFrom`, whose `type` is a runtime value)
+// match this union overload and narrow the result themselves.
 export function parse(
   markdown: string,
-  type: "cv" | "projects",
+  type: ParseType,
+): ParsedCv | ParsedProjects;
+export function parse(
+  markdown: string,
+  type: ParseType,
 ): ParsedCv | ParsedProjects {
   return type === "cv" ? parseCv(markdown) : parseProjects(markdown);
 }

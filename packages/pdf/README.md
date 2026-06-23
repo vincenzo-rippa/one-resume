@@ -3,13 +3,15 @@
 Renders a parsed CV / projects document to a **Typst PDF**.
 
 ```ts
-import { TypstPdf } from "@one-resume/pdf";
+import { PdfRenderer } from "@one-resume/pdf";
 
-const typst = new TypstPdf();                 // constructor = typst preflight
-typst.renderPdf([{ parsed, out: "cv.pdf" }]);
+const typst = new PdfRenderer(); // constructor = typst preflight
+await typst.renderPdf([{ parsed, out: "cv.pdf" }]);
 ```
 
-`renderPdf(jobs)` writes one PDF per `{ parsed, out }`. The parsed *shape* selects
+`renderPdf(jobs)` returns a `Promise<void>` and writes one PDF per
+`{ parsed, out }`. Typst runs via async `spawn`, so awaiting it never blocks the
+event loop — a server can render concurrently. The parsed _shape_ selects
 the template: a `ParsedCv` renders the adaptive `cv` template (its Selected
 Projects section appears only when `parsed.projects` is non-empty), a
 `ParsedProjects` renders `projects`. Section titles and field labels come from

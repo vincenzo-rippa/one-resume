@@ -1,15 +1,15 @@
-// Filesystem ContentSource: reads markdown from a root directory. A relative
+// Filesystem DocumentSource: reads markdown from a root directory. A relative
 // path resolves against the root; an absolute path is read as-is (so `--input`
 // can point anywhere). The api's GitHubRepository is the same port over a repo.
 
 import { resolve } from "node:path";
-import type { ContentSource } from "@one-resume/content";
+import type { DocumentSource } from "@one-resume/domain";
 import { readTextRequired } from "./io.ts";
 
-export class FsContentSource implements ContentSource {
+export class FsDocumentSource implements DocumentSource {
   constructor(private readonly root: string) {}
 
-  read(path: string): Promise<string> {
-    return readTextRequired(resolve(this.root, path));
+  async read(path: string): Promise<string> {
+    return await readTextRequired(resolve(this.root, path));
   }
 }

@@ -3,19 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The one-resume command-line app: parse | pdf | docx | sync | check. Owns config, paths, targets, and fs I/O; orchestrates the @one-resume/* libraries.",
+  "description": "The one-resume command-line app: parse | pdf | docx. Owns config, paths, and fs I/O; orchestrates the @one-resume/* libraries.",
   "engines": {
     "node": ">=22.0.0"
   },
   "bin": {
     "one-resume": "./src/bin.ts"
   },
+  "scripts": {
+    "test": "node --import tsx --test \"test/**/*.test.ts\""
+  },
   "dependencies": {
     "@one-resume/domain": "*",
     "@one-resume/parser": "*",
     "@one-resume/pdf": "*",
     "@one-resume/docx": "*",
-    "@one-resume/content": "*",
     "yaml": "^2.6.1"
   },
   "devDependencies": {

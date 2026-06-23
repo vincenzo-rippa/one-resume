@@ -22,46 +22,67 @@ CLI: `C:\Users\admin\Developer\profile-source`.
    HTTP API.
 5. **Explicit, lean.** Required fields only; no god objects, no silent defaults
    where a value is genuinely required. The one principled exception: a missing
-   *parse anchor* is impossible because there are no anchors — the parser falls
+   _parse anchor_ is impossible because there are no anchors — the parser falls
    back to structure by design.
 
 ## Locked contracts
 
 ### `@one-resume/domain`
-Renamed from `@one-resume/types`. It is a zero-runtime *domain model* (interfaces
+
+Renamed from `@one-resume/types`. It is a zero-runtime _domain model_ (interfaces
 only) — not a TS `@types/*` shim, and deliberately not a `core`: there is no shared
 runtime to gather (each package owns its own helpers), so `core` would promise logic
 it doesn't hold. It is the dependency-free hub at the centre of the parse→render
 pipeline; parser is the input adapter, pdf/docx/content the output adapters.
+
 ```ts
 interface ParsedCv {
   profile: Profile;
-  labels: SectionLabels;                 // captured from the markdown headings
+  labels: SectionLabels; // captured from the markdown headings
   experiences: Experience[];
   education: Education[];
-  projects: Project[];                   // embedded section; [] when absent
+  projects: Project[]; // embedded section; [] when absent
   footer: string;
 }
 // The single, mandatory Label object — captured, no overrides, no per-tool wording.
-interface SectionLabels { about: string; experience: string; education: string; technologies: string; projects: string }
+interface SectionLabels {
+  about: string;
+  experience: string;
+  education: string;
+  technologies: string;
+  projects: string;
+}
 
 interface Project {
   title: string;
   period: Period;
   description: string;
-  fields: ProjectField[];                // ordered; associated-with / technologies / highlights are all just fields
+  fields: ProjectField[]; // ordered; associated-with / technologies / highlights are all just fields
 }
-interface ProjectField { key: string; label: string; value: string[]; inline: boolean }  // key = normalize(label); inline = `**Label:** a,b` (one line) vs `**Label**` + bullet list
-interface Period { start: string; end: string }                          // end is literal markdown text; no "ongoing" sentinel
-interface Contact { label: string; value: string }   // header contact segment, captured verbatim & ordered; "" label = bare value (email)
+interface ProjectField {
+  key: string;
+  label: string;
+  value: string[];
+  inline: boolean;
+} // key = normalize(label); inline = `**Label:** a,b` (one line) vs `**Label**` + bullet list
+interface Period {
+  start: string;
+  end: string;
+} // end is literal markdown text; no "ongoing" sentinel
+interface Contact {
+  label: string;
+  value: string;
+} // header contact segment, captured verbatim & ordered; "" label = bare value (email)
 // Profile.contacts: Contact[]. Portfolio is just a labelled contact — no separate field, no hardcoded service keys.
 ```
 
 ### `@one-resume/parser` — one command, strongly typed, positional, no anchors
+
 ```ts
-function parse(markdown: string, type: "cv"): ParsedCv
-function parse(markdown: string, type: "projects"): ParsedProjects
+function parse(markdown: string, type: "cv"): ParsedCv;
+function parse(markdown: string, type: "projects"): ParsedProjects;
 ```
+
 A CV with a projects section is still parsed as `"cv"` — there is no separate variant. Unsupported
 types are a compile error (overloads), not a runtime branch. Sections are
 identified by token depth/position; their titles and project field labels are
@@ -69,36 +90,55 @@ identified by token depth/position; their titles and project field labels are
 not text-dictionary based.
 
 ### `@one-resume/pdf` / `@one-resume/docx` — job arrays, no label/ type params
+
 ```ts
-renderPdf(jobs: { parsed: ParsedCv | ParsedProjects; out: string }[]): void
-renderDocx(jobs: { parsed: ParsedCv | ParsedProjects }[]): Uint8Array[]
+renderPdf(jobs: { parsed: ParsedCv | ParsedProjects; out: string }[]): Promise<void>
+renderDocx(jobs: { parsed: ParsedCv | ParsedProjects }[]): Promise<Uint8Array[]>
 ```
+
 Labels come from `parsed.labels` (never passed in). The doc kind is read from
 `parsed` (discriminant in the data, not a parameter). PDF uses one adaptive
 template (the projects section renders only when present) + the projects template. DOCX adjusts to the
 captured wording. **PDF and content are the outputs that must stay correct.**
 
-### `@one-resume/content` (= "export json")
-Owns multi-parse + locale grouping (reused by the API). Parses the cv (+ optional
-projects) and emits `content.json` including the captured `labels`. The staleness
-**`check` does not live here** — it moves to the CLI.
+### content JSON (= "export json")
+
+There is no `@one-resume/content` package anymore. The site's content JSON — a CV
+with an optional standalone projects doc merged in — is built by the API's
+`/v1/content` controller from `@one-resume/parser` output. The CLI's `parse`
+handles a single CV (→ JSON, or `--check <json>` for staleness); the merge is an
+API concern.
 
 ### Content source + manifests (JSON)
+
 - Content source = a configured root. CLI: a filesystem dir (`profile-source`).
   API: a GitHub repo (`GitHubConfig`). Paths in jobs/manifests are root-relative.
 - A **manifest** is a JSON array of jobs; each job is minimal now that labels are
   captured and anchors are gone:
   ```jsonc
   // { op: "json" | "pdf" | "docx", type: "cv" | "projects", input, output }
-  [ { "op": "pdf",  "type": "cv",       "input": "cv/main/en-cv.md",      "output": "out/en.pdf" },
-    { "op": "json", "type": "cv",       "input": "cv/main/en-cv.md",
-      "projects": "projects/en-projects.md",                              "output": "en/content.json" } ]
+  [
+    {
+      "op": "pdf",
+      "type": "cv",
+      "input": "cv/main/en-cv.md",
+      "output": "out/en.pdf",
+    },
+    {
+      "op": "json",
+      "type": "cv",
+      "input": "cv/main/en-cv.md",
+      "projects": "projects/en-projects.md",
+      "output": "en/content.json",
+    },
+  ]
   ```
 - Manifests + example manifests live in the content source (`profile-source`),
   organized there. The API payload is the same job shape (output omitted →
   streamed/returned).
 
 ## Markdown contract changes
+
 - **Mandatory `## About`** before the about paragraphs (captured as `labels.about`;
   consumers may ignore it).
 - **Unified projects**: `## <Projects heading>` + `### <Title>` entries everywhere
@@ -116,6 +156,7 @@ projects) and emits `content.json` including the captured `labels`. The stalenes
   trailing section is projects).
 
 ## Dropped
+
 `@one-resume/localization` (whole package), all parser language dictionaries +
 anchors, the `ongoing` normalization, per-tool label wording, every path/label/
 locale constant (`BULK_DIRS`, `*_TARGETS`, `detectLocale`, `SUPPORTED_LOCALES`,
@@ -125,6 +166,7 @@ go too — contacts are captured verbatim. Hard golden/baseline gating is droppe
 (product is not live). `special` leaves the monorepo (below).
 
 ## Phased plan
+
 0. **Rename `@one-resume/types` → `@one-resume/domain`** (done before Phase 4, while
    only the parser was migrated so the blast radius was smallest): `git mv`, rewrite
    import specifiers, regenerate the lockfile (purged the stale `types` + leftover
@@ -136,7 +178,7 @@ go too — contacts are captured verbatim. Hard golden/baseline gating is droppe
 2. **Parser rewrite** — positional capture, `parse(md, type)`, new `ParsedCv`
    shape; rewrite parser tests; **prove `es`/`fr` parse** alongside `en`/`it`.
 3. **Markdown contract + `examples/`** updated to the new shape (+ the contract doc).
-3b. **De-hardcode header contacts** (own commit, before the renderers): `Profile.contacts`
+   3b. **De-hardcode header contacts** (own commit, before the renderers): `Profile.contacts`
    becomes ordered `Contact[]` captured verbatim (label-if-present); the parser's
    hardcoded service keys, the `portfolio` field, and url-scheme normalization are
    removed; examples fold portfolio into the contact line. This is the last header
@@ -147,9 +189,9 @@ go too — contacts are captured verbatim. Hard golden/baseline gating is droppe
    (b) the renderers themselves. **Verify PDF** on the examples; DOCX adjusts.
 5. **content `exportJson`** to the new shape; verify `content.json`.
 6. **Content source** (DONE — split from the rest of 6): a shared
-   `ContentSource { read(path) }` port in `@one-resume/content` + `loadContent`;
-   the CLI's `FsContentSource` and the api's `GitHubRepository` are the two
-   adapters; CLI reads route through it. **Deferred** (separate session, low
+   `DocumentSource { read(path) }` port (now in `@one-resume/domain`, renamed from
+   the original `ContentSource`) + `loadContent`; the CLI's `FsDocumentSource` and
+   the api's `GitHubRepository` are the two adapters; CLI reads route through it. **Deferred** (separate session, low
    priority): JSON manifests in `profile-source` + a manifest runner replacing
    `buildOne`/`buildAll` + deleting the CLI's `targets.ts` lists. The CLI keeping
    local target lists is acceptable; packages + api are fully de-hardcoded.
@@ -164,11 +206,13 @@ go too — contacts are captured verbatim. Hard golden/baseline gating is droppe
    contracts into ARCHITECTURE/READMEs).
 
 ## External ripples (not done here)
+
 - **`pro-landing`** is NOT updated now — it will move to consuming the content
   **API**, so its `content.json` coupling changes later, not in this refactor.
 - **`special`** becomes its own private repo (nested in `apps/`, gitignored).
 
 ## Verification (lean — no golden byte-gating)
+
 Per-package inline-fixture tests (incl. `es`/`fr` parse fixtures as the
 language-agnostic proof) + the fresh-clone demo gate producing artifacts under
 the configured output. PDF and content are the outputs that must stay correct.

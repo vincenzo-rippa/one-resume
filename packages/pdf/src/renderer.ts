@@ -1,4 +1,4 @@
-// The one sanctioned PDF entry point. Constructing a `TypstPdf` runs the typst
+// The one sanctioned PDF entry point. Constructing a `PdfRenderer` runs the typst
 // preflight (`typst --version`); a successfully-constructed instance proves typst
 // is reachable. `renderPdf` writes one PDF per job: the parsed document IS the
 // template payload (the templates read it directly), and its shape selects the
@@ -16,7 +16,7 @@ export interface PdfJob {
   out: string;
 }
 
-export class TypstPdf {
+export class PdfRenderer {
   private readonly bin: string;
 
   /**
@@ -31,13 +31,14 @@ export class TypstPdf {
   }
 
   /**
-   * Render each job to its `out` path. A CV uses the adaptive `cv` template (it
-   * renders the projects section only when present); a standalone projects
-   * document uses `projects`.
+   * Render each job to its `out` path, in order. A CV uses the adaptive `cv`
+   * template (it renders the projects section only when present); a standalone
+   * projects document uses `projects`. Each compile shells out to Typst via
+   * async `spawn`, so awaiting this never blocks the caller's event loop.
    */
-  renderPdf(jobs: PdfJob[]): void {
+  async renderPdf(jobs: PdfJob[]): Promise<void> {
     for (const { parsed, out } of jobs) {
-      compile(this.bin, {
+      await compile(this.bin, {
         payload: parsed,
         template: "profile" in parsed ? "cv" : "projects",
         pdfOut: out,

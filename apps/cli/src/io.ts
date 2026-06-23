@@ -9,7 +9,8 @@ import {
   copyFile as fsCopyFile,
   readdir,
 } from "node:fs/promises";
-import { dirname } from "node:path";
+import type { Dirent } from "node:fs";
+import { dirname, join, relative } from "node:path";
 
 /** Read UTF-8 text, or `null` when the file does not exist (ENOENT). */
 export async function readText(path: string): Promise<string | null> {
@@ -54,12 +55,25 @@ export async function copyFile(src: string, dest: string): Promise<void> {
   await fsCopyFile(src, dest);
 }
 
-/** List entry names directly under a directory; `[]` when it does not exist. */
-export async function listDir(dir: string): Promise<string[]> {
-  try {
-    return await readdir(dir);
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return [];
-    throw e;
+/** Recursively list `*.md` files under `root`, as paths relative to `root`. */
+export async function listMarkdown(root: string): Promise<string[]> {
+  const out: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    let entries: Dirent[];
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
+      throw e;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) await walk(full);
+      else if (entry.isFile() && entry.name.endsWith(".md")) {
+        out.push(relative(root, full));
+      }
+    }
   }
+  await walk(root);
+  return out.sort();
 }

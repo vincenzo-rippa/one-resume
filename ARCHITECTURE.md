@@ -1,7 +1,7 @@
 # Architecture
 
 `one-resume` is a small **ports-and-adapters** pipeline. A zero-runtime domain
-model sits at the centre; everything else adapts *into* it (parsing) or *out of*
+model sits at the centre; everything else adapts _into_ it (parsing) or _out of_
 it (rendering), and two thin delivery mechanisms (a CLI and an HTTP API) wire it
 to the outside world.
 
@@ -22,14 +22,14 @@ and configuration see [`README.md`](README.md).
                  │   zero runtime)     │   depends on nothing.
                  └────────────────────┘
                             │  output adapters
-        ┌───────────────────┼───────────────────┐
-        ▼                   ▼                   ▼
-  @one-resume/pdf     @one-resume/docx    @one-resume/content
-   Typst → PDF         → .docx bytes        → content.json
-        └─────────┬─────────┴─────────┬─────────┘
-                  ▼                   ▼            delivery
-              apps/cli             apps/api
-        (FsContentSource)     (GitHubRepository)
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+        @one-resume/pdf            @one-resume/docx
+         Typst → PDF                → .docx bytes
+              └─────────────┬─────────────┘
+                            ▼  delivery
+              apps/cli                  apps/api
+        (FsDocumentSource)    (GitHubRepository; also content JSON)
 ```
 
 Dependencies are acyclic and point inward: every package depends on
@@ -40,8 +40,8 @@ the parser — they take the already-parsed data.
 
 - **`@one-resume/domain`** — the interfaces (`ParsedCv`, `Profile`, `Contact`,
   `Experience`, `Education`, `Project`, `ProjectField`, `Period`, `SectionLabels`,
-  `Location`). Zero runtime: consumed with `import type` only. Deliberately *not*
-  a TS `@types/*` shim and *not* a `core` — there is no shared runtime to gather,
+  `Location`). Zero runtime: consumed with `import type` only. Deliberately _not_
+  a TS `@types/*` shim and _not_ a `core` — there is no shared runtime to gather,
   because each package owns its own helpers.
 - **`@one-resume/parser`** — the input adapter: `parse(md, "cv" | "projects")`
   (strongly-typed overloads). Reads structure positionally and **captures** the
@@ -50,9 +50,10 @@ the parser — they take the already-parsed data.
 - **`@one-resume/pdf` / `@one-resume/docx`** — output adapters. They take the
   parsed document and read its captured labels; no labels or `type` parameter is
   passed in.
-- **`@one-resume/content`** — the website's output adapter, plus the
-  `ContentSource` port and `loadContent(source, job)`, the read-then-build use
-  case both apps share.
+
+The site's **content JSON** is no longer its own package — the API's `/v1/content`
+controller builds it (CV + optional standalone projects, merged) from the parsed
+data.
 
 ## Language-agnostic by construction
 
@@ -72,30 +73,32 @@ renderers. This one doesn't — the parser captures whatever the markdown says:
 - **The period end is literal** — the author writes `Present` / `Presente` /
   `Présent`; it renders verbatim, with no sentinel.
 
-The proof: Spanish and French CV fixtures parse with *no* parser change (see the
+The proof: Spanish and French CV fixtures parse with _no_ parser change (see the
 `@one-resume/parser` tests).
 
-## Reading from anywhere: the `ContentSource` port
+## Reading from anywhere: the `DocumentSource` port
 
-`@one-resume/content` defines the one seam between "where the bytes live" and the
+`@one-resume/domain` defines the one seam between "where the bytes live" and the
 pure pipeline:
 
 ```ts
-interface ContentSource { read(path: string): Promise<string>; }
+interface DocumentSource {
+  read(path: string): Promise<string>;
+}
 ```
 
-The CLI implements it with `FsContentSource` (a filesystem root); the API
-implements it with `GitHubRepository` (octokit over a repo). `loadContent(source,
-job)` reads a job's CV (+ optional standalone projects) through the port and
-builds the content, so both delivery mechanisms share one read-then-build path.
-The HTTP request *is* the job: `GET /v1/content?cv=…&projects=…`.
+The CLI implements it with `FsDocumentSource` (a filesystem root); the API
+implements it with `GitHubRepository` (octokit over a repo). Reads route through
+`parseFrom` (read-then-parse). The site's merged content JSON — a CV with a
+standalone projects doc folded in — is built by the API's `/v1/content` controller
+(`GET /v1/content?cv=…&projects=…`); the CLI's `parse` handles a single CV.
 
 ## Rendering
 
-- **PDF** (`@one-resume/pdf`): a `TypstPdf` instance shells out to the Typst CLI,
+- **PDF** (`@one-resume/pdf`): a `PdfRenderer` instance shells out to the Typst CLI,
   pinned to the repo-bundled Inter fonts with `--ignore-system-fonts`, so output
   is reproducible across machines. `renderPdf(jobs)` writes one PDF per
-  `{ parsed, out }`; the parsed *shape* selects the template — a CV uses the one
+  `{ parsed, out }`; the parsed _shape_ selects the template — a CV uses the one
   adaptive `cv` template (it renders an embedded projects section only when
   present), a standalone projects document uses `projects`. There is no separate
   "freelance" variant.
@@ -135,5 +138,5 @@ threaded into the PDF's `set document(keywords: …)`.
 
 - A **manifest runner** — JSON job manifests (`{ op, type, input, output }`) in
   the content source, replacing the CLI's hardcoded target lists
-  (`apps/cli/src/targets.ts`). The `ContentSource` it needs already exists; the
-  manifest *is* the API request shape.
+  (`apps/cli/src/targets.ts`). The `DocumentSource` it needs already exists; the
+  manifest _is_ the API request shape.
