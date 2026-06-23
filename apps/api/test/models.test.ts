@@ -6,7 +6,10 @@ import { ContentQuery, RenderRequest } from "../src/models.ts";
 // from reaching outside the content repo (traversal / absolute paths).
 describe("ContentQuery", () => {
   it("accepts a relative .md cv, with projects optional", () => {
-    assert.equal(ContentQuery.safeParse({ cv: "cv/main/en-cv.md" }).success, true);
+    assert.equal(
+      ContentQuery.safeParse({ cv: "cv/main/en-cv.md" }).success,
+      true,
+    );
     assert.equal(
       ContentQuery.safeParse({ cv: "cv/en.md", projects: "projects/en.md" })
         .success,
@@ -42,7 +45,10 @@ describe("ContentQuery", () => {
   });
 
   it("rejects a repeated param (array)", () => {
-    assert.equal(ContentQuery.safeParse({ cv: ["a.md", "b.md"] }).success, false);
+    assert.equal(
+      ContentQuery.safeParse({ cv: ["a.md", "b.md"] }).success,
+      false,
+    );
   });
 });
 

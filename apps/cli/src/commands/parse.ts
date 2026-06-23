@@ -125,9 +125,9 @@ export async function runParse(args: string[]): Promise<void> {
     const json = JSON.stringify(parsed, null, 2);
     if (opts.out) {
       mkdirSync(dirname(resolve(opts.out)), { recursive: true });
-      writeFileSync(opts.out, json + "\n", "utf8");
+      writeFileSync(opts.out, `${json}\n`, "utf8");
     } else {
-      process.stdout.write(json + "\n");
+      process.stdout.write(`${json}\n`);
     }
   } catch (e) {
     if (e instanceof ParseError) {

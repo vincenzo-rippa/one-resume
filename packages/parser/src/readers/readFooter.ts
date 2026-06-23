@@ -1,5 +1,5 @@
 import type { Tokens } from "marked";
-import { TokenStream } from "../classes/TokenStream.ts";
+import type { TokenStream } from "../classes/TokenStream.ts";
 import { plainText } from "../helpers/inline.ts";
 
 /**

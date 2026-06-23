@@ -59,13 +59,13 @@ export async function compile(
   const { payload, template, pdfOut, timeoutMs } = opts;
 
   await mkdir(CACHE_DIR, { recursive: true });
-  const cacheFile = resolve(CACHE_DIR, randomUUID() + ".json");
-  const dataArg = ".cache/" + basename(cacheFile);
+  const cacheFile = resolve(CACHE_DIR, `${randomUUID()}.json`);
+  const dataArg = `.cache/${basename(cacheFile)}`;
   await writeFile(cacheFile, JSON.stringify(payload, null, 2), "utf8");
 
   await mkdir(dirname(pdfOut), { recursive: true });
 
-  const templateFile = resolve(TEMPLATES_DIR, template + ".typ");
+  const templateFile = resolve(TEMPLATES_DIR, `${template}.typ`);
   try {
     await runTypst(
       bin,
@@ -110,7 +110,9 @@ function runTypst(
       ? setTimeout(() => {
           child.kill();
           reject(
-            new PdfError(`typst timed out after ${timeoutMs}ms for ${template}`),
+            new PdfError(
+              `typst timed out after ${timeoutMs}ms for ${template}`,
+            ),
           );
         }, timeoutMs)
       : undefined;

@@ -43,14 +43,16 @@ describe("parse(projects)", () => {
     assert.equal(a.title, "Billing Platform");
     assert.deepEqual(a.period, { start: "2021", end: "2022" });
     assert.equal(a.description, "A multi-tenant billing system.");
-    assert.deepEqual(a.fields.map((f) => f.key), [
-      "associated with",
-      "highlights",
-      "selected technologies",
-    ]);
+    assert.deepEqual(
+      a.fields.map((f) => f.key),
+      ["associated with", "highlights", "selected technologies"],
+    );
     // `inline` follows the source: `**Label:** value` is inline, `**Label**` +
     // bullet list is not — so the renderer never guesses from the value count.
-    assert.deepEqual(a.fields.map((f) => f.inline), [true, false, true]);
+    assert.deepEqual(
+      a.fields.map((f) => f.inline),
+      [true, false, true],
+    );
     assert.deepEqual(a.fields[1].value, [
       "Processed millions of invoices",
       "99.99% uptime",

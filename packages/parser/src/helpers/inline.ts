@@ -48,7 +48,7 @@ function renderInline(token: Token): string {
     case "html":
       // Strip inline HTML tags entirely.
       return "";
-    default:
+    default: {
       // Best-effort: if the token has a `tokens` array, recurse; else its `text`.
       const anyToken = token as {
         tokens?: Token[];
@@ -58,6 +58,7 @@ function renderInline(token: Token): string {
       if (anyToken.tokens) return inlineToPlain(anyToken.tokens);
       if (typeof anyToken.text === "string") return anyToken.text;
       return "";
+    }
   }
 }
 const HTML_ENTITIES: Record<string, string> = {

@@ -117,7 +117,9 @@ function buildContactLines(cv: Profile): string[] {
     lines.push(availability ? `${based} · ${availability}` : based);
   }
 
-  const bits = cv.contacts.map((c) => (c.label ? `${c.label}: ${c.value}` : c.value));
+  const bits = cv.contacts.map((c) =>
+    c.label ? `${c.label}: ${c.value}` : c.value,
+  );
   if (bits.length > 0) lines.push(bits.join(" · "));
 
   return lines;
@@ -239,7 +241,9 @@ function buildCvDocument(parsed: ParsedCv): Document {
 
   if (profile.headline) children.push(sectionHeading(profile.headline));
   if (profile.tagline) {
-    children.push(body(profile.tagline, { italics: true, after: SPACING.bodyAfter }));
+    children.push(
+      body(profile.tagline, { italics: true, after: SPACING.bodyAfter }),
+    );
   }
   for (const p of profile.aboutParagraphs) {
     children.push(body(p, { after: SPACING.bodyAfter }));
@@ -279,7 +283,9 @@ function buildCvDocument(parsed: ParsedCv): Document {
   if (education.length > 0) {
     children.push(sectionHeading(labels.education));
     for (const e of education) {
-      const titleLine = e.institution ? `${e.title} @ ${e.institution}` : e.title;
+      const titleLine = e.institution
+        ? `${e.title} @ ${e.institution}`
+        : e.title;
       children.push(
         body(titleLine, {
           bold: true,
@@ -290,7 +296,9 @@ function buildCvDocument(parsed: ParsedCv): Document {
         }),
       );
       if (e.subtitle) {
-        children.push(body(e.subtitle, { italics: true, after: SPACING.bodyAfter }));
+        children.push(
+          body(e.subtitle, { italics: true, after: SPACING.bodyAfter }),
+        );
       }
     }
   }

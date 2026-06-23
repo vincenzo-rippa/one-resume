@@ -1,6 +1,6 @@
 import type { Tokens } from "marked";
 import type { Contact, Location } from "@one-resume/domain";
-import { TokenStream } from "../classes/TokenStream.ts";
+import type { TokenStream } from "../classes/TokenStream.ts";
 import { plainText } from "../helpers/inline.ts";
 
 export interface HeaderBlock {
@@ -59,8 +59,11 @@ export function readTaglines(stream: TokenStream): {
   taglineShort: string;
 } {
   const lines: string[] = [];
-  let para: Tokens.Paragraph | undefined;
-  while ((para = stream.consumeItalicParagraph())) lines.push(plainText(para.tokens));
+  let para = stream.consumeItalicParagraph();
+  while (para) {
+    lines.push(plainText(para.tokens));
+    para = stream.consumeItalicParagraph();
+  }
   return { tagline: lines[0] ?? "", taglineShort: lines[1] ?? "" };
 }
 

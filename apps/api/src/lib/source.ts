@@ -1,6 +1,6 @@
 import { Octokit, RequestError } from "octokit";
 import type { DocumentSource } from "@one-resume/domain";
-import { GitHubConfig } from "./config.ts";
+import type { GitHubConfig } from "./config.ts";
 import { AppError } from "./error.ts";
 
 const GITHUB_TIMEOUT_MS = 10_000;

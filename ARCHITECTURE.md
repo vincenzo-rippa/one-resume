@@ -111,6 +111,12 @@ Neither format is byte-reproducible (Typst embeds a build timestamp; docx embeds
 dates), so behaviour is verified by rendering and inspecting, plus the parser and
 content test suites.
 
+The render endpoints (`/v1/pdf`, `/v1/docx`) have **no per-request rate limiting**,
+by design. They are auth-gated (`X-API-KEY`) and assume currently a single consumer — the
+author's static-site build — so a limiter would be ceremony more than protection. If the consumer model ever broadened
+(multiple or untrusted callers), a limiter would slot in as Koa middleware in
+`apps/api`, beside the existing timeout and headers middlewares.
+
 ## Conventions
 
 - **TypeScript as source — no build step.** `tsx` runs `.ts` directly;

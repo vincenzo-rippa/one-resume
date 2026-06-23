@@ -1,6 +1,6 @@
 import type { Tokens } from "marked";
 import type { Education } from "@one-resume/domain";
-import { TokenStream } from "../classes/TokenStream.ts";
+import type { TokenStream } from "../classes/TokenStream.ts";
 import { plainText } from "../helpers/inline.ts";
 
 /** The Education section: `## <label>` heading + bold `**Title @ Institution**` entries. */

@@ -1,6 +1,6 @@
 import type { Tokens } from "marked";
 import type { Project, ProjectField } from "@one-resume/domain";
-import { TokenStream } from "../classes/TokenStream.ts";
+import type { TokenStream } from "../classes/TokenStream.ts";
 import { plainText } from "../helpers/inline.ts";
 import { parsePeriod } from "../helpers/period.ts";
 
@@ -15,7 +15,7 @@ export function readOptionalProjectsSection(stream: TokenStream): {
 } {
   stream.skipHorizontalRule();
   const next = stream.peekMeaningful();
-  if (!next || next.type !== "heading" || (next as Tokens.Heading).depth !== 2) {
+  if (next?.type !== "heading" || (next as Tokens.Heading).depth !== 2) {
     return { label: "", projects: [] };
   }
   const label = plainText(stream.consumeHeading([2], "## Projects").tokens);
@@ -91,7 +91,9 @@ function readOneProject(stream: TokenStream, projectDepth: number): Project {
           token,
         );
       }
-      last.value = (token as Tokens.List).items.map((it) => plainText(it.tokens));
+      last.value = (token as Tokens.List).items.map((it) =>
+        plainText(it.tokens),
+      );
       continue;
     }
 
@@ -102,7 +104,10 @@ function readOneProject(stream: TokenStream, projectDepth: number): Project {
       continue;
     }
 
-    throw stream.error(`unexpected token in project block: ${token.type}`, token);
+    throw stream.error(
+      `unexpected token in project block: ${token.type}`,
+      token,
+    );
   }
 
   return { title, period, description: descriptionParts.join(" "), fields };

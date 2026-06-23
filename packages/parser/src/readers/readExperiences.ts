@@ -1,6 +1,6 @@
 import type { Tokens } from "marked";
 import type { Experience, Period } from "@one-resume/domain";
-import { TokenStream } from "../classes/TokenStream.ts";
+import type { TokenStream } from "../classes/TokenStream.ts";
 import { plainText } from "../helpers/inline.ts";
 import { parsePeriod, splitOnDash } from "../helpers/period.ts";
 
@@ -43,7 +43,10 @@ function readOneExperience(stream: TokenStream): Experience {
       "expected an italic `Location | Date range` line after the experience heading",
     );
   }
-  const { location, period } = parseLocationAndPeriod(plainText(meta.tokens), stream);
+  const { location, period } = parseLocationAndPeriod(
+    plainText(meta.tokens),
+    stream,
+  );
 
   const listToken = stream.consumeMeaningful();
   if (listToken.type !== "list") {

@@ -18,6 +18,9 @@
     "one-resume": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts",
     "parse": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts parse",
     "test": "npm run test --workspaces --if-present",
+    "format": "biome format --write .",
+    "lint": "biome lint .",
+    "check": "biome check .",
     "typecheck": "tsc -p packages/domain/tsconfig.json --noEmit && tsc -p packages/parser/tsconfig.json --noEmit && tsc -p packages/pdf/tsconfig.json --noEmit && tsc -p packages/docx/tsconfig.json --noEmit && tsc -p apps/cli/tsconfig.json --noEmit && tsc -p apps/api/tsconfig.json --noEmit",
     "pdf": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf",
     "pdf:all": "tsx --env-file-if-exists=apps/cli/.env apps/cli/src/bin.ts pdf --all",
@@ -27,6 +30,7 @@
     "api:dev": "tsx watch --env-file=apps/api/.env apps/api/src/app.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.1",
     "@types/node": "^22.10.0",
     "tsx": "^4.22.2",
     "typescript": "^5.7.0"

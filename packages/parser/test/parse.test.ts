@@ -167,7 +167,10 @@ describe("parse(cv) — structural errors", () => {
     assert.throws(() => parse("## Nope\n", "cv"), ParseError);
   });
   it("throws when the About section heading is missing", () => {
-    assert.throws(() => parse(CV.replace("## About\n\n", ""), "cv"), ParseError);
+    assert.throws(
+      () => parse(CV.replace("## About\n\n", ""), "cv"),
+      ParseError,
+    );
   });
   it("throws when the footer is missing", () => {
     assert.throws(

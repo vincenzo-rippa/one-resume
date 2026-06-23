@@ -23,7 +23,7 @@ async function buildOne(
   const kind = resolveKind(input, templateFlag);
   const out = outPath
     ? resolve(process.cwd(), outPath)
-    : resolve(outputDir, basename(input, extname(input)) + ".pdf");
+    : resolve(outputDir, `${basename(input, extname(input))}.pdf`);
 
   const parsed = await parseFrom(source, input, kind);
 
@@ -71,9 +71,9 @@ export async function runPdf(
 
   if (wantsAll) {
     await buildAll(typst, source, config, outputDir);
-  } else {
+  } else if (inputPath) {
     await buildOne(typst, source, outputDir, {
-      input: resolve(process.cwd(), inputPath!),
+      input: resolve(process.cwd(), inputPath),
       templateFlag: getFlag(args, "template"),
       outPath: getFlag(args, "out"),
     });
