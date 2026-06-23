@@ -1,4 +1,7 @@
-# one-resume
+<h1 align="center">{the} one resume</h1>
+
+<p align="center"><em>One résumé to rule them all.</em></p>
+
 
 A small, **language-agnostic** document pipeline: CV / projects markdown → typed
 data → print-ready **PDF** (Typst), ATS-friendly **DOCX**, and the **content

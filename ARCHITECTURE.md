@@ -129,12 +129,35 @@ SEO/ATS keywords live in the CV markdown as a never-rendered comment —
 `<!-- keywords: a, b, c -->` — read by the parser into `ParsedCv.keywords` and
 threaded into the PDF's `set document(keywords: …)`.
 
+## Design evolution
+
+The current shape is the result of several deliberate refactors; the through-line
+is _subtraction_ and _dependency inversion_.
+
+- **Language handling: dictionaries → capture.** An earlier design injected
+  `en`/`it` label dictionaries into the parser and renderers. That whole approach
+  — along with a localization package, language anchors, and per-tool label
+  wording — was removed in favour of positional capture. Adding a language now
+  needs no code.
+- **I/O: a resolver + loaders → one port.** A `SourceResolver`/loader layer
+  collapsed into the `DocumentSource` port (`read(path)`), with a filesystem
+  adapter (CLI) and a GitHub adapter (API). The pipeline stopped knowing where
+  the bytes come from.
+- **Packaging: a build step → TS-as-source.** The workspace runs `.ts` directly
+  via `tsx`; deployment ships source. Simpler to read and run, at the cost of
+  shipping source — a deliberate trade for a tool this size.
+- **Scope held down.** The "freelance" variant became just a CV that embeds
+  projects; the content-JSON merge moved into the API controller instead of its
+  own package; a manifest runner was deferred until it earns its place.
+
+The bias throughout: prefer removing a concept to adding one.
+
 ## Not in this repo
 
 - The **markdown content** is private — a separate `profile-source` repo, or any
   GitHub repo the API points at. The bundled `examples/` are CC0 stand-ins.
-- The **`special`** Italian photo-CV variant is its own private app, nested under
-  `apps/` and gitignored, reusing `@one-resume/parser` + `@one-resume/domain`.
+- A private **photo-CV variant** is its own app under `apps/` (gitignored),
+  reusing `@one-resume/parser` + `@one-resume/domain`.
 
 ## Deferred
 
